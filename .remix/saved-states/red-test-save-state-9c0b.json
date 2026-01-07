@@ -1,0 +1,12 @@
+{
+  "id": "9c0b",
+  "label": "Red - Test Save State",
+  "timestamp": 1766357482660,
+  "gameState": {
+    "id": "1766357481051-33c32rx0",
+    "gameState": {
+      "color": "red",
+      "timestamp": 1766357481025
+    }
+  }
+}
