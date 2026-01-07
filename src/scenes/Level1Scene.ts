@@ -120,6 +120,10 @@ export class Level1Scene extends Phaser.Scene {
   private undoButton!: Phaser.GameObjects.Container;
   private gameWon: boolean = false;
 
+  // Score
+  private score: number = 0;
+  private scoreText!: Phaser.GameObjects.Text;
+
   // Estado de input
   private isDragging: boolean = false;
   private currentCell: Cell | null = null;
@@ -173,9 +177,11 @@ export class Level1Scene extends Phaser.Scene {
     super({ key: "Level1Scene" });
   }
 
-  init(data?: { level?: number }): void {
+  init(data?: { level?: number; score?: number }): void {
     // Obtener nivel de los datos pasados o usar 1
     this.currentLevel = data?.level ?? 1;
+    // Preservar score entre niveles
+    this.score = data?.score ?? 0;
 
     // IMPORTANTE: Resetear todas las variables de estado para el nuevo nivel
     this.cells = [];
@@ -194,11 +200,11 @@ export class Level1Scene extends Phaser.Scene {
     this.needsLineRedraw = false;
     this.frameCount = 0;
     this.electricityFrame = 0;
-    // Calcular tiempo según dificultad: 30s base + 5s por cada tier de dificultad
-    // Nivel 1-3: 30s, Nivel 4-6: 35s, Nivel 7-9: 40s, Nivel 10+: 50s
+    // Calcular tiempo según dificultad: 20s base + 3s por cada tier de dificultad
+    // Nivel 1-3: 20s, Nivel 4-6: 23s, Nivel 7-9: 26s, Nivel 10+: 32s
     const difficultyTier = Math.min(Math.floor((this.currentLevel - 1) / 3), 3);
     const levelTime =
-      30 + difficultyTier * 5 + (this.currentLevel >= 10 ? 10 : 0);
+      20 + difficultyTier * 3 + (this.currentLevel >= 10 ? 6 : 0);
     this.timeRemaining = levelTime;
     this.maxTime = levelTime;
 
@@ -243,15 +249,23 @@ export class Level1Scene extends Phaser.Scene {
     this.activateCell(startCell);
   }
 
+  // Cache para evitar recálculos del timer
+  private lastDisplayedTime: number = -1;
+
   update(time: number, delta: number): void {
     this.time_elapsed += delta;
     this.frameCount++;
 
-    // Actualizar timer
+    // Actualizar timer (solo redibujar cuando cambia el segundo mostrado)
     if (!this.gameWon && this.timeRemaining > 0) {
       this.timeRemaining -= delta / 1000;
       if (this.timeRemaining < 0) this.timeRemaining = 0;
-      this.updateTimerDisplay();
+
+      const displayTime = Math.floor(this.timeRemaining);
+      if (displayTime !== this.lastDisplayedTime) {
+        this.lastDisplayedTime = displayTime;
+        this.updateTimerDisplay();
+      }
     }
 
     // Redibujar líneas solo cuando es necesario
@@ -260,17 +274,19 @@ export class Level1Scene extends Phaser.Scene {
       this.needsLineRedraw = false;
     }
 
-    // Efectos de plasma cada 4 frames
-    if (this.frameCount % 4 === 0) {
+    // Efectos de plasma cada 8 frames (reducido de 4)
+    if (this.frameCount % 8 === 0) {
       this.updatePlasmaRays();
     }
 
-    // Física de chispas cada frame para movimiento suave
-    this.updateSparks(delta);
+    // Física de chispas solo si hay chispas
+    if (this.sparks.length > 0) {
+      this.updateSparks(delta);
 
-    // Overlay de iluminación cada 3 frames
-    if (this.frameCount % 3 === 0) {
-      this.updateLighting();
+      // Overlay de iluminación solo cada 4 frames y si hay chispas
+      if (this.frameCount % 4 === 0) {
+        this.updateLighting();
+      }
     }
   }
 
@@ -676,39 +692,38 @@ export class Level1Scene extends Phaser.Scene {
     const { width, height } = GameSettings.canvas;
     const word = this.currentLevelConfig.word;
 
-    this.wordContainer = this.add.container(width / 2, height - 80);
+    // Letras más pequeñas y espaciado reducido
+    const letterSpacing = Math.min(50, 300 / word.length);
+    const wordWidth = (word.length - 1) * letterSpacing + 50;
+    const bgWidth = Math.max(300, wordWidth + 40);
+
+    // Tamaño del botón undo (mismo alto que el fondo de la palabra)
+    const undoButtonWidth = 80;
+    const totalWidth = bgWidth + 12 + undoButtonWidth; // 12px gap
+
+    // Posicionar el contenedor de palabra a la izquierda del centro
+    const wordCenterX = width / 2 - (undoButtonWidth + 12) / 2;
+
+    this.wordContainer = this.add.container(wordCenterX, height - 80);
     this.wordLetters = [];
 
-    // Ajustar espaciado según longitud de palabra
-    const letterSpacing = Math.min(70, 400 / word.length);
     const startX = -((word.length - 1) * letterSpacing) / 2;
-    const bgWidth = Math.max(400, word.length * letterSpacing + 60);
 
     // Fondo sutil para las letras
     const bgBar = this.add.graphics();
     bgBar.fillStyle(0x0a0a14, 0.8);
-    bgBar.fillRoundedRect(-bgWidth / 2, -45, bgWidth, 90, 16);
+    bgBar.fillRoundedRect(-bgWidth / 2, -40, bgWidth, 80, 16);
     this.wordContainer.add(bgBar);
 
     for (let i = 0; i < word.length; i++) {
       const letter = word[i];
       const x = startX + i * letterSpacing;
 
-      // Indicador de orden (pequeño número)
-      const orderIndicator = this.add.text(x + 18, -22, `${i + 1}`, {
-        fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
-        fontSize: "11px",
-        color: "#2a2a3a",
-      });
-      orderIndicator.setOrigin(0.5, 0.5);
-      orderIndicator.setData("orderIndicator", true);
-      this.wordContainer.add(orderIndicator);
-
       // Efecto de glow detrás
-      const glow = this.add.text(x, 5, letter, {
+      const glow = this.add.text(x, 0, letter, {
         fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
-        fontSize: "52px",
-        color: "#00ccff",
+        fontSize: "42px",
+        color: "#b7ff01",
         fontStyle: "bold",
       });
       glow.setOrigin(0.5, 0.5);
@@ -716,9 +731,9 @@ export class Level1Scene extends Phaser.Scene {
       this.wordContainer.add(glow);
 
       // Letra principal - estilo moderno
-      const letterText = this.add.text(x, 5, letter, {
+      const letterText = this.add.text(x, 0, letter, {
         fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
-        fontSize: "52px",
+        fontSize: "42px",
         color: "#2a2a3a",
         fontStyle: "bold",
       });
@@ -726,10 +741,16 @@ export class Level1Scene extends Phaser.Scene {
       letterText.setData("glow", glow);
       letterText.setData("order", i + 1);
       letterText.setData("isLit", false);
-      letterText.setData("orderIndicator", orderIndicator);
       this.wordContainer.add(letterText);
       this.wordLetters.push(letterText);
     }
+
+    // Crear botón de undo a la derecha de la palabra
+    this.createUndoButton(
+      wordCenterX + bgWidth / 2 + 12 + undoButtonWidth / 2,
+      height - 80,
+      undoButtonWidth
+    );
   }
 
   private createTimer(): void {
@@ -803,72 +824,112 @@ export class Level1Scene extends Phaser.Scene {
   private createLevelIndicator(): void {
     const { width } = this.cameras.main;
 
-    // Indicador de nivel más cerca del timer (no tan al borde)
+    // Indicador de nivel a la izquierda del timer
     const levelText = this.add.text(
-      width / 2 - 100,
+      width / 2 - 110,
       70,
       `Level ${this.currentLevel}`,
       {
         fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
-        fontSize: "22px",
+        fontSize: "28px",
         color: "#666677",
         fontStyle: "bold",
       }
     );
     levelText.setOrigin(1, 0.5);
 
-    // Botón de undo (reset del tablero) a la derecha del timer
-    this.createUndoButton(width / 2 + 100, 70);
+    // Score a la derecha del timer (solo el número, más grande)
+    this.scoreText = this.add.text(width / 2 + 110, 70, `${this.score}`, {
+      fontFamily: '"SF Pro Display", "Helvetica Neue", Arial, sans-serif',
+      fontSize: "28px",
+      color: "#b7ff01",
+      fontStyle: "bold",
+    });
+    this.scoreText.setOrigin(0, 0.5);
   }
 
-  private createUndoButton(x: number, y: number): void {
+  private createUndoButton(
+    x: number,
+    y: number,
+    buttonWidth: number = 80
+  ): void {
     this.undoButton = this.add.container(x, y);
 
-    // Fondo circular sutil
+    // Fondo rectangular con bordes redondeados (mismo estilo que el fondo de la palabra)
+    const buttonHeight = 80;
     const bg = this.add.graphics();
-    bg.fillStyle(0x1a1a24, 0.8);
-    bg.fillCircle(0, 0, 22);
-    bg.lineStyle(2, 0x333344, 1);
-    bg.strokeCircle(0, 0, 22);
+    bg.fillStyle(0x0a0a14, 0.8);
+    bg.fillRoundedRect(
+      -buttonWidth / 2,
+      -buttonHeight / 2,
+      buttonWidth,
+      buttonHeight,
+      16
+    );
     this.undoButton.add(bg);
 
-    // Icono de undo (flecha curvada)
+    // Icono de refresh/reload (círculo con flecha) en color neón
     const icon = this.add.graphics();
-    icon.lineStyle(2.5, 0x666677, 1);
 
-    // Dibujar flecha de undo
+    // Dibujar círculo de refresh con glow neón
+    // Capa de glow
+    icon.lineStyle(6, NEON_COLORS.electricBlue, 0.3);
     icon.beginPath();
-    icon.arc(0, 0, 10, Math.PI * 0.2, Math.PI * 1.3, false);
+    icon.arc(0, 2, 14, -Math.PI * 0.4, Math.PI * 1.1, false);
     icon.strokePath();
 
-    // Punta de flecha
+    // Línea principal del círculo
+    icon.lineStyle(3, NEON_COLORS.electricBlue, 1);
     icon.beginPath();
-    icon.moveTo(-8, -8);
-    icon.lineTo(-4, -3);
-    icon.moveTo(-8, -8);
-    icon.lineTo(-2, -9);
+    icon.arc(0, 2, 14, -Math.PI * 0.4, Math.PI * 1.1, false);
+    icon.strokePath();
+
+    // Punta de flecha (apuntando hacia la derecha/arriba)
+    icon.lineStyle(3, NEON_COLORS.electricBlue, 1);
+    icon.beginPath();
+    // Flecha en el extremo del arco (arriba-derecha)
+    icon.moveTo(10, -8);
+    icon.lineTo(14, -2);
+    icon.moveTo(10, -8);
+    icon.lineTo(5, -4);
     icon.strokePath();
 
     this.undoButton.add(icon);
 
     // Hacer interactivo
-    this.undoButton.setSize(44, 44);
+    this.undoButton.setSize(buttonWidth, buttonHeight);
     this.undoButton.setInteractive({ useHandCursor: true });
 
     this.undoButton.on("pointerover", () => {
       bg.clear();
-      bg.fillStyle(0x2a2a34, 0.9);
-      bg.fillCircle(0, 0, 22);
-      bg.lineStyle(2, 0xb7ff01, 0.5);
-      bg.strokeCircle(0, 0, 22);
+      bg.fillStyle(0x151520, 0.9);
+      bg.fillRoundedRect(
+        -buttonWidth / 2,
+        -buttonHeight / 2,
+        buttonWidth,
+        buttonHeight,
+        16
+      );
+      bg.lineStyle(2, NEON_COLORS.electricBlue, 0.5);
+      bg.strokeRoundedRect(
+        -buttonWidth / 2,
+        -buttonHeight / 2,
+        buttonWidth,
+        buttonHeight,
+        16
+      );
     });
 
     this.undoButton.on("pointerout", () => {
       bg.clear();
-      bg.fillStyle(0x1a1a24, 0.8);
-      bg.fillCircle(0, 0, 22);
-      bg.lineStyle(2, 0x333344, 1);
-      bg.strokeCircle(0, 0, 22);
+      bg.fillStyle(0x0a0a14, 0.8);
+      bg.fillRoundedRect(
+        -buttonWidth / 2,
+        -buttonHeight / 2,
+        buttonWidth,
+        buttonHeight,
+        16
+      );
     });
 
     this.undoButton.on("pointerdown", () => {
@@ -899,10 +960,6 @@ export class Level1Scene extends Phaser.Scene {
       letterText.setData("isLit", false);
       const glow = letterText.getData("glow") as Phaser.GameObjects.Text;
       if (glow) glow.setAlpha(0);
-      const orderIndicator = letterText.getData(
-        "orderIndicator"
-      ) as Phaser.GameObjects.Text;
-      if (orderIndicator) orderIndicator.setColor("#2a2a3a");
     }
 
     // Limpiar líneas
@@ -1428,14 +1485,6 @@ export class Level1Scene extends Phaser.Scene {
       glow.setAlpha(0.4);
     }
 
-    // Iluminar también el indicador de orden
-    const orderIndicator = letterText.getData(
-      "orderIndicator"
-    ) as Phaser.GameObjects.Text;
-    if (orderIndicator) {
-      orderIndicator.setColor("#B7FF01");
-    }
-
     this.tweens.add({
       targets: letterText,
       scale: 1.15,
@@ -1455,14 +1504,6 @@ export class Level1Scene extends Phaser.Scene {
     const glow = letterText.getData("glow") as Phaser.GameObjects.Text;
     if (glow) {
       glow.setAlpha(0);
-    }
-
-    // Apagar el indicador de orden
-    const orderIndicator = letterText.getData(
-      "orderIndicator"
-    ) as Phaser.GameObjects.Text;
-    if (orderIndicator) {
-      orderIndicator.setColor("#2a2a3a");
     }
   }
 
@@ -1501,33 +1542,9 @@ export class Level1Scene extends Phaser.Scene {
   ): void {
     if (!container) return;
 
-    // Letras: efecto de bombilla con pulso suave del glow
+    // Letras: glow estático sin animación para mejor rendimiento
     if (container.getData("cellType") === "letter") {
-      const glowLayers = container.getData("plasmaGlow") as
-        | Phaser.GameObjects.Graphics[]
-        | undefined;
-      if (!glowLayers || glowLayers.length === 0) return;
-
-      const time = this.time_elapsed * 0.002;
-
-      // Pulso suave del glow (efecto de respiración de luz)
-      const pulse = 0.85 + Math.sin(time) * 0.15;
-      const pulse2 = 0.9 + Math.sin(time * 1.3 + 0.5) * 0.1;
-      const ringPulse = 0.9 + Math.sin(time * 1.5 + 1) * 0.1;
-
-      for (let i = 0; i < glowLayers.length; i++) {
-        const layer = glowLayers[i];
-        if (layer && layer.active) {
-          // Aplicar pulso diferente a cada capa (la última es el anillo)
-          let layerPulse: number;
-          if (i === 0) layerPulse = pulse;
-          else if (i === 1) layerPulse = pulse2;
-          else if (i === 3) layerPulse = ringPulse; // Anillo brillante
-          else layerPulse = 1;
-          layer.setAlpha(layerPulse);
-        }
-      }
-
+      // Las letras mantienen glow estático, no necesitan animación cada frame
       return;
     }
 
@@ -1536,7 +1553,7 @@ export class Level1Scene extends Phaser.Scene {
       | undefined;
     if (!plasmaRays) return;
 
-    const time = this.time_elapsed * 0.003; // Velocidad moderada
+    const time = this.time_elapsed * 0.002; // Velocidad más lenta
 
     for (let i = 0; i < plasmaRays.length; i++) {
       const ray = plasmaRays[i];
@@ -1546,57 +1563,27 @@ export class Level1Scene extends Phaser.Scene {
       ray.clear();
 
       // Ángulo con rotación suave
-      const angle = baseAngle + Math.sin(time * 3 + offset) * 0.4 + time * 0.5;
+      const angle = baseAngle + time * 0.3;
 
-      // Longitud con pulso
-      const pulse = Math.sin(time * 4 + offset * 2);
-      const length = 18 + pulse * 7;
+      // Longitud con pulso simple
+      const pulse = Math.sin(time * 2 + offset);
+      const length = 16 + pulse * 5;
 
-      // Rayo con múltiples segmentos (efecto rayo real)
-      const segments = 4;
-      const points: { x: number; y: number }[] = [{ x: 0, y: 0 }];
-      for (let s = 1; s <= segments; s++) {
-        const t = s / segments;
-        const baseX = Math.cos(angle) * length * t;
-        const baseY = Math.sin(angle) * length * t;
-        const jitter = Math.sin(time * 8 + i * 2 + s * 3) * (4 * (1 - t * 0.5));
-        const perpX = -Math.sin(angle) * jitter;
-        const perpY = Math.cos(angle) * jitter;
-        points.push({ x: baseX + perpX, y: baseY + perpY });
-      }
+      // Rayo simplificado - solo 2 segmentos
+      const endX = Math.cos(angle) * length;
+      const endY = Math.sin(angle) * length;
 
-      // Glow exterior
+      // Solo una capa de dibujo (en lugar de 3)
       const alpha = 0.7 + pulse * 0.2;
-      ray.lineStyle(5, NEON_COLORS.electricBlue, alpha * 0.3);
+      ray.lineStyle(3, NEON_COLORS.electricBlue, alpha);
       ray.beginPath();
-      ray.moveTo(points[0].x, points[0].y);
-      for (let p = 1; p < points.length; p++) {
-        ray.lineTo(points[p].x, points[p].y);
-      }
-      ray.strokePath();
-
-      // Rayo principal
-      ray.lineStyle(2.5, NEON_COLORS.electricBlue, alpha);
-      ray.beginPath();
-      ray.moveTo(points[0].x, points[0].y);
-      for (let p = 1; p < points.length; p++) {
-        ray.lineTo(points[p].x, points[p].y);
-      }
-      ray.strokePath();
-
-      // Núcleo brillante
-      ray.lineStyle(1, NEON_COLORS.electricWhite, alpha * 0.9);
-      ray.beginPath();
-      ray.moveTo(points[0].x, points[0].y);
-      for (let p = 1; p < points.length; p++) {
-        ray.lineTo(points[p].x, points[p].y);
-      }
+      ray.moveTo(0, 0);
+      ray.lineTo(endX, endY);
       ray.strokePath();
 
       // Destello en la punta
-      const endP = points[points.length - 1];
       ray.fillStyle(NEON_COLORS.electricWhite, alpha * 0.8);
-      ray.fillCircle(endP.x, endP.y, 2 + pulse);
+      ray.fillCircle(endX, endY, 2);
     }
   }
 
@@ -1643,45 +1630,18 @@ export class Level1Scene extends Phaser.Scene {
   private updateLighting(): void {
     this.lightingOverlay.clear();
 
-    // Dibujar chispas con efecto de estela
+    // Dibujar chispas simplificadas (solo núcleo + glow)
     for (const spark of this.sparks) {
-      // Estela (dirección del movimiento)
-      const speed = Math.sqrt(spark.vx * spark.vx + spark.vy * spark.vy);
-      if (speed > 10) {
-        const tailLen = Math.min(speed * 0.1, 8);
-        const nx = -spark.vx / speed;
-        const ny = -spark.vy / speed;
-        this.lightingOverlay.lineStyle(
-          2,
-          NEON_COLORS.electricBlue,
-          spark.alpha * 0.4
-        );
-        this.lightingOverlay.beginPath();
-        this.lightingOverlay.moveTo(spark.x, spark.y);
-        this.lightingOverlay.lineTo(
-          spark.x + nx * tailLen,
-          spark.y + ny * tailLen
-        );
-        this.lightingOverlay.strokePath();
-      }
-
-      // Glow exterior grande
+      // Glow simple
       this.lightingOverlay.fillStyle(
         NEON_COLORS.electricBlue,
-        spark.alpha * 0.2
+        spark.alpha * 0.4
       );
-      this.lightingOverlay.fillCircle(spark.x, spark.y, 6);
-
-      // Glow medio
-      this.lightingOverlay.fillStyle(
-        NEON_COLORS.electricBlue,
-        spark.alpha * 0.5
-      );
-      this.lightingOverlay.fillCircle(spark.x, spark.y, 3);
+      this.lightingOverlay.fillCircle(spark.x, spark.y, 4);
 
       // Núcleo brillante
       this.lightingOverlay.fillStyle(NEON_COLORS.electricWhite, spark.alpha);
-      this.lightingOverlay.fillCircle(spark.x, spark.y, 1.5);
+      this.lightingOverlay.fillCircle(spark.x, spark.y, 2);
     }
   }
 
@@ -1702,6 +1662,26 @@ export class Level1Scene extends Phaser.Scene {
   private showVictory(): void {
     this.gameWon = true;
     const { width, height } = GameSettings.canvas;
+
+    // Calcular puntos ganados:
+    // Base: 50 puntos
+    // Multiplicador por tiempo: 1.0 a 2.0 según tiempo restante
+    const basePoints = 50;
+    const timeMultiplier = 1 + this.timeRemaining / this.maxTime; // 1.0 a 2.0
+    const pointsEarned = Math.round(basePoints * timeMultiplier);
+    this.score += pointsEarned;
+
+    // Actualizar display del score con animación
+    if (this.scoreText) {
+      this.scoreText.setText(`${this.score}`);
+      this.tweens.add({
+        targets: this.scoreText,
+        scale: 1.3,
+        duration: 200,
+        yoyo: true,
+        ease: "Back.easeOut",
+      });
+    }
 
     // Explosión de chispas desde todas las celdas
     for (const cell of this.path) {
@@ -1778,8 +1758,8 @@ export class Level1Scene extends Phaser.Scene {
     this.cameras.main.fadeOut(500, 0, 0, 0);
 
     this.cameras.main.once("camerafadeoutcomplete", () => {
-      // Reiniciar la escena con el siguiente nivel
-      this.scene.restart({ level: this.currentLevel + 1 });
+      // Reiniciar la escena con el siguiente nivel y el score acumulado
+      this.scene.restart({ level: this.currentLevel + 1, score: this.score });
     });
   }
 
