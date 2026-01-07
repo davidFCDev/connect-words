@@ -1,3 +1,2 @@
-// This file re-exports the demo scene
-// To remove the demo and start fresh, ask your AI assistant
-export { DemoScene as GameScene } from './DemoScene'
+// REMIX Connect - Level 1
+export { Level1Scene as GameScene } from "./Level1Scene";

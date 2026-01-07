@@ -3,5 +3,8 @@
     "showBuildPanel": false,
     "showGameStatePanel": true,
     "showBoostConfigPanel": false
+  },
+  "devSettings": {
+    "fullSize": false
   }
 }
