@@ -21,14 +21,14 @@
  */
 export default {
   // Unique identifier for your game
-  gameId: '4322f8a7-dfa6-47f1-95ac-8ae55205bbc5', // UUID format - auto-generated or linked to Remix
+  gameId: "4322f8a7-dfa6-47f1-95ac-8ae55205bbc5", // UUID format - auto-generated or linked to Remix
 
   // Whether this game is linked to Remix (true after running link command)
   isRemixGame: false,
 
   // Display name for your game
-  gameName: 'remix-connect',
+  gameName: "remix-connect",
 
   // Multiplayer mode (true = multiplayer, false = singleplayer)
   multiplayer: false,
-}
+};

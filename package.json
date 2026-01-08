@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "remix-dev dev",
-    "build": "remix-dev build",
+    "build": "node build-no-mangle.mjs",
+    "build:mangle": "remix-dev build",
     "preview": "remix-dev preview",
     "deploy": "remix-dev deploy"
   },

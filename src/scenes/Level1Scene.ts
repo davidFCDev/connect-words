@@ -1,6 +1,11 @@
 import type { FarcadeSDK } from "@farcade/game-sdk";
 import GameSettings from "../config/GameSettings";
-import { generateLevel, type LevelConfig } from "../utils/LevelGenerator";
+import {
+  generateLevel,
+  type LevelConfig,
+  type Wall,
+  type WallSegment,
+} from "../utils/LevelGenerator";
 
 declare global {
   interface Window {
@@ -86,6 +91,10 @@ const NEON_COLORS = {
   letterOn: 0xb7ff01,
   lineColor: 0xb7ff01,
   sparkColor: 0xd4ff88,
+  // Colores para muros (tonos rojizos/naranjas)
+  wallColor: 0xff4444,
+  wallGlow: 0xff6666,
+  wallCore: 0xff8888,
 };
 
 // Configuración base del grid (se ajusta según el nivel)
@@ -169,6 +178,11 @@ export class Level1Scene extends Phaser.Scene {
   // Control de animación de electricidad
   private electricityFrame: number = 0;
 
+  // Sistema de paredes (nivel 10+)
+  private walls: Wall[] = [];
+  private wallsGraphics!: Phaser.GameObjects.Graphics;
+  private wallBlockedEdges: Set<string> = new Set(); // "row1,col1-row2,col2"
+
   // Nivel actual y configuración dinámica
   private currentLevel: number = 1;
   private currentLevelConfig!: LevelConfig;
@@ -200,11 +214,16 @@ export class Level1Scene extends Phaser.Scene {
     this.needsLineRedraw = false;
     this.frameCount = 0;
     this.electricityFrame = 0;
+    this.walls = [];
+    this.wallBlockedEdges = new Set();
     // Calcular tiempo según dificultad: 20s base + 3s por cada tier de dificultad
-    // Nivel 1-3: 20s, Nivel 4-6: 23s, Nivel 7-9: 26s, Nivel 10+: 32s
+    // Nivel 1-3: 20s, Nivel 4-6: 23s, Nivel 7-9: 26s, Nivel 10-14: 32s, Nivel 15+: 40s
     const difficultyTier = Math.min(Math.floor((this.currentLevel - 1) / 3), 3);
     const levelTime =
-      20 + difficultyTier * 3 + (this.currentLevel >= 10 ? 6 : 0);
+      20 +
+      difficultyTier * 3 +
+      (this.currentLevel >= 10 ? 6 : 0) +
+      (this.currentLevel >= 15 ? 8 : 0);
     this.timeRemaining = levelTime;
     this.maxTime = levelTime;
 
@@ -227,6 +246,40 @@ export class Level1Scene extends Phaser.Scene {
 
     // El mapa de orden de letras ahora viene del generador por posición
     // (ya no usamos this.letterOrder basado en la letra, sino letterOrderByPosition)
+
+    // Almacenar las paredes del nivel y crear el set de bordes bloqueados
+    this.walls = this.currentLevelConfig.walls || [];
+    this.buildWallBlockedEdges();
+  }
+
+  // Construye el set de bordes bloqueados por paredes para búsqueda rápida
+  private buildWallBlockedEdges(): void {
+    this.wallBlockedEdges.clear();
+    for (const wall of this.walls) {
+      // Cada muro tiene múltiples segmentos
+      for (const segment of wall.segments) {
+        const edge = this.normalizeEdge(
+          segment.cell1.row,
+          segment.cell1.col,
+          segment.cell2.row,
+          segment.cell2.col
+        );
+        this.wallBlockedEdges.add(edge);
+      }
+    }
+  }
+
+  // Normaliza un borde para comparación consistente
+  private normalizeEdge(
+    r1: number,
+    c1: number,
+    r2: number,
+    c2: number
+  ): string {
+    if (r1 < r2 || (r1 === r2 && c1 < c2)) {
+      return `${r1},${c1}-${r2},${c2}`;
+    }
+    return `${r2},${c2}-${r1},${c1}`;
   }
 
   create(): void {
@@ -237,6 +290,7 @@ export class Level1Scene extends Phaser.Scene {
     this.createTimer();
     this.createLevelIndicator();
     this.createGrid();
+    this.createWalls(); // Renderizar paredes después del grid
     this.createWordDisplay();
     this.setupInput();
     this.createInstructions();
@@ -367,6 +421,92 @@ export class Level1Scene extends Phaser.Scene {
         this.cells[row][col] = cell;
         this.totalCells++;
       }
+    }
+  }
+
+  // Renderizar las paredes que bloquean el movimiento
+  private createWalls(): void {
+    if (this.walls.length === 0) return;
+
+    this.wallsGraphics = this.add.graphics();
+
+    const cellTotalSize = CELL_SIZE + CELL_GAP;
+    const wallThickness = 5; // Más fino
+    const wallLength = CELL_SIZE + CELL_GAP; // Ocupa todo el ancho entre celdas
+
+    for (const wall of this.walls) {
+      // Renderizar cada segmento del muro
+      for (const segment of wall.segments) {
+        this.renderWallSegment(
+          segment,
+          cellTotalSize,
+          wallThickness,
+          wallLength
+        );
+      }
+    }
+  }
+
+  // Renderizar un segmento individual de muro
+  private renderWallSegment(
+    segment: WallSegment,
+    cellTotalSize: number,
+    wallThickness: number,
+    wallLength: number
+  ): void {
+    // Calcular posición del centro entre las dos celdas
+    const cell1X =
+      this.gridStartX + segment.cell1.col * cellTotalSize + CELL_SIZE / 2;
+    const cell1Y =
+      this.gridStartY + segment.cell1.row * cellTotalSize + CELL_SIZE / 2;
+    const cell2X =
+      this.gridStartX + segment.cell2.col * cellTotalSize + CELL_SIZE / 2;
+    const cell2Y =
+      this.gridStartY + segment.cell2.row * cellTotalSize + CELL_SIZE / 2;
+
+    const centerX = (cell1X + cell2X) / 2;
+    const centerY = (cell1Y + cell2Y) / 2;
+
+    // Dibujar glow sutil
+    this.wallsGraphics.fillStyle(NEON_COLORS.wallColor, 0.25);
+    if (segment.orientation === "horizontal") {
+      // Pared horizontal (bloquea movimiento vertical)
+      this.wallsGraphics.fillRoundedRect(
+        centerX - wallLength / 2 - 2,
+        centerY - wallThickness / 2 - 2,
+        wallLength + 4,
+        wallThickness + 4,
+        2
+      );
+    } else {
+      // Pared vertical (bloquea movimiento horizontal)
+      this.wallsGraphics.fillRoundedRect(
+        centerX - wallThickness / 2 - 2,
+        centerY - wallLength / 2 - 2,
+        wallThickness + 4,
+        wallLength + 4,
+        2
+      );
+    }
+
+    // Dibujar la pared principal (sólida)
+    this.wallsGraphics.fillStyle(NEON_COLORS.wallColor, 1);
+    if (segment.orientation === "horizontal") {
+      this.wallsGraphics.fillRoundedRect(
+        centerX - wallLength / 2,
+        centerY - wallThickness / 2,
+        wallLength,
+        wallThickness,
+        2
+      );
+    } else {
+      this.wallsGraphics.fillRoundedRect(
+        centerX - wallThickness / 2,
+        centerY - wallLength / 2,
+        wallThickness,
+        wallLength,
+        2
+      );
     }
   }
 
@@ -1094,7 +1234,18 @@ export class Level1Scene extends Phaser.Scene {
     const colDiff = Math.abs(cell1.col - cell2.col);
 
     // Solo adyacentes ortogonales (no diagonales)
-    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+    const isOrthogonallyAdjacent =
+      (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+
+    if (!isOrthogonallyAdjacent) return false;
+
+    // Verificar si hay una pared bloqueando el paso
+    const edge = this.normalizeEdge(cell1.row, cell1.col, cell2.row, cell2.col);
+    if (this.wallBlockedEdges.has(edge)) {
+      return false; // Hay una pared, no son adyacentes para el movimiento
+    }
+
+    return true;
   }
 
   private getCellAtPosition(x: number, y: number): Cell | null {
@@ -1664,9 +1815,9 @@ export class Level1Scene extends Phaser.Scene {
     const { width, height } = GameSettings.canvas;
 
     // Calcular puntos ganados:
-    // Base: 50 puntos
+    // Base: 100 puntos
     // Multiplicador por tiempo: 1.0 a 2.0 según tiempo restante
-    const basePoints = 50;
+    const basePoints = 100;
     const timeMultiplier = 1 + this.timeRemaining / this.maxTime; // 1.0 a 2.0
     const pointsEarned = Math.round(basePoints * timeMultiplier);
     this.score += pointsEarned;

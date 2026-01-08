@@ -2,6 +2,22 @@
 // Genera niveles con caminos hamiltonianos garantizados
 // Las letras se colocan en orden a lo largo del camino
 
+// Representa un segmento de pared entre dos celdas adyacentes
+export interface WallSegment {
+  // Celda 1 (siempre la de arriba o izquierda)
+  cell1: { row: number; col: number };
+  // Celda 2 (siempre la de abajo o derecha)
+  cell2: { row: number; col: number };
+  // Orientación: 'horizontal' = pared entre celdas verticalmente adyacentes
+  // 'vertical' = pared entre celdas horizontalmente adyacentes
+  orientation: "horizontal" | "vertical";
+}
+
+// Un muro completo puede tener 2-3 segmentos conectados (línea recta o esquina)
+export interface Wall {
+  segments: WallSegment[];
+}
+
 export interface LevelConfig {
   word: string;
   grid: string[][];
@@ -11,6 +27,8 @@ export interface LevelConfig {
   gridRows: number;
   // Mapa de "row,col" -> orden de la letra (1-based)
   letterOrderByPosition: Map<string, number>;
+  // Paredes que bloquean el paso (nivel 10+)
+  walls: Wall[];
 }
 
 interface Position {
@@ -161,6 +179,9 @@ export class LevelGenerator {
       letterPositions
     );
 
+    // Generar paredes (solo nivel 10+)
+    const walls = this.generateWalls(cols, rows, path, difficulty);
+
     return {
       word,
       grid,
@@ -169,6 +190,7 @@ export class LevelGenerator {
       gridCols: cols,
       gridRows: rows,
       letterOrderByPosition,
+      walls,
     };
   }
 
@@ -432,6 +454,9 @@ export class LevelGenerator {
       letterPositions
     );
 
+    // Generar paredes (solo nivel 10+)
+    const walls = this.generateWalls(cols, rows, path, difficulty);
+
     return {
       word,
       grid,
@@ -440,6 +465,7 @@ export class LevelGenerator {
       gridCols: cols,
       gridRows: rows,
       letterOrderByPosition,
+      walls,
     };
   }
 
@@ -450,6 +476,220 @@ export class LevelGenerator {
       map.set(word[i], i + 1);
     }
     return map;
+  }
+
+  // Generar paredes que no bloqueen el camino hamiltoniano
+  // Las paredes aparecen desde nivel 10 y aumentan progresivamente
+  // Cada muro tiene 2-3 segmentos y puede formar líneas rectas o esquinas
+  private generateWalls(
+    cols: number,
+    rows: number,
+    path: Position[],
+    difficulty: number
+  ): Wall[] {
+    // Solo generar paredes a partir del nivel 10
+    if (difficulty < 10) {
+      return [];
+    }
+
+    // Crear un conjunto de bordes usados por el camino (para no bloquearlos)
+    const pathEdges = new Set<string>();
+    for (let i = 0; i < path.length - 1; i++) {
+      const p1 = path[i];
+      const p2 = path[i + 1];
+      const edge = this.normalizeEdge(p1, p2);
+      pathEdges.add(edge);
+    }
+
+    // Calcular cuántos muros generar basado en la dificultad
+    // Nivel 10-11: 2 muros, Nivel 12-14: 3 muros, Nivel 15+: 4 muros
+    let numWalls: number;
+    if (difficulty <= 11) {
+      numWalls = 2;
+    } else if (difficulty <= 14) {
+      numWalls = 3;
+    } else {
+      numWalls = 4;
+    }
+
+    // Recopilar todos los bordes posibles que NO están en el camino
+    const availableEdges: WallSegment[] = [];
+
+    // Bordes horizontales (entre celdas verticalmente adyacentes)
+    for (let r = 0; r < rows - 1; r++) {
+      for (let c = 0; c < cols; c++) {
+        const p1 = { row: r, col: c };
+        const p2 = { row: r + 1, col: c };
+        const edge = this.normalizeEdge(p1, p2);
+        if (!pathEdges.has(edge)) {
+          availableEdges.push({
+            cell1: p1,
+            cell2: p2,
+            orientation: "horizontal",
+          });
+        }
+      }
+    }
+
+    // Bordes verticales (entre celdas horizontalmente adyacentes)
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols - 1; c++) {
+        const p1 = { row: r, col: c };
+        const p2 = { row: r, col: c + 1 };
+        const edge = this.normalizeEdge(p1, p2);
+        if (!pathEdges.has(edge)) {
+          availableEdges.push({
+            cell1: p1,
+            cell2: p2,
+            orientation: "vertical",
+          });
+        }
+      }
+    }
+
+    // Crear mapa de bordes para búsqueda rápida
+    const edgeMap = new Map<string, WallSegment>();
+    for (const edge of availableEdges) {
+      const key = this.normalizeEdge(edge.cell1, edge.cell2);
+      edgeMap.set(key, edge);
+    }
+
+    // Mezclar aleatoriamente los bordes disponibles
+    const shuffledEdges = [...availableEdges];
+    for (let i = shuffledEdges.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [shuffledEdges[i], shuffledEdges[j]] = [
+        shuffledEdges[j],
+        shuffledEdges[i],
+      ];
+    }
+
+    // Generar muros multi-segmento
+    const walls: Wall[] = [];
+    const usedEdges = new Set<string>(); // Bordes ya usados en muros
+
+    for (const startEdge of shuffledEdges) {
+      if (walls.length >= numWalls) break;
+
+      const startKey = this.normalizeEdge(startEdge.cell1, startEdge.cell2);
+      if (usedEdges.has(startKey)) continue;
+
+      // Intentar construir un muro de 2-3 segmentos desde este borde
+      const wall = this.buildMultiSegmentWall(
+        startEdge,
+        edgeMap,
+        usedEdges,
+        pathEdges
+      );
+
+      if (wall && wall.segments.length >= 2) {
+        walls.push(wall);
+        // Marcar todos los segmentos como usados
+        for (const seg of wall.segments) {
+          usedEdges.add(this.normalizeEdge(seg.cell1, seg.cell2));
+        }
+      }
+    }
+
+    return walls;
+  }
+
+  // Construir un muro de 2-3 segmentos conectados
+  private buildMultiSegmentWall(
+    startEdge: WallSegment,
+    edgeMap: Map<string, WallSegment>,
+    usedEdges: Set<string>,
+    pathEdges: Set<string>
+  ): Wall | null {
+    const segments: WallSegment[] = [startEdge];
+    const startKey = this.normalizeEdge(startEdge.cell1, startEdge.cell2);
+
+    // Decidir longitud del muro: 2 o 3 segmentos (60% de 2, 40% de 3)
+    const targetLength = this.rng() < 0.6 ? 2 : 3;
+
+    // Buscar segmentos conectados
+    let currentSegment = startEdge;
+
+    for (let i = 1; i < targetLength; i++) {
+      const nextSegment = this.findConnectedSegment(
+        currentSegment,
+        segments,
+        edgeMap,
+        usedEdges,
+        pathEdges
+      );
+
+      if (nextSegment) {
+        segments.push(nextSegment);
+        currentSegment = nextSegment;
+      } else {
+        break; // No se puede extender más
+      }
+    }
+
+    // Retornar solo si tenemos al menos 2 segmentos
+    if (segments.length >= 2) {
+      return { segments };
+    }
+    return null;
+  }
+
+  // Encontrar un segmento conectado al segmento actual
+  private findConnectedSegment(
+    current: WallSegment,
+    existingSegments: WallSegment[],
+    edgeMap: Map<string, WallSegment>,
+    usedEdges: Set<string>,
+    pathEdges: Set<string>
+  ): WallSegment | null {
+    // Los extremos del muro actual son las celdas compartidas por segmentos
+    // Buscamos bordes que compartan una celda con el segmento actual
+
+    const candidates: WallSegment[] = [];
+    const existingKeys = new Set(
+      existingSegments.map((s) => this.normalizeEdge(s.cell1, s.cell2))
+    );
+
+    // Buscar bordes adyacentes en las 4 celdas del segmento actual
+    const cellsToCheck = [current.cell1, current.cell2];
+
+    for (const cell of cellsToCheck) {
+      // Buscar bordes que compartan esta celda
+      const neighborPositions = [
+        { row: cell.row - 1, col: cell.col },
+        { row: cell.row + 1, col: cell.col },
+        { row: cell.row, col: cell.col - 1 },
+        { row: cell.row, col: cell.col + 1 },
+      ];
+
+      for (const neighbor of neighborPositions) {
+        const edgeKey = this.normalizeEdge(cell, neighbor);
+        const segment = edgeMap.get(edgeKey);
+
+        if (
+          segment &&
+          !existingKeys.has(edgeKey) &&
+          !usedEdges.has(edgeKey) &&
+          !pathEdges.has(edgeKey)
+        ) {
+          candidates.push(segment);
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    // Elegir uno al azar
+    const idx = Math.floor(this.rng() * candidates.length);
+    return candidates[idx];
+  }
+
+  // Normalizar un borde para comparación (siempre "menor" celda primero)
+  private normalizeEdge(p1: Position, p2: Position): string {
+    if (p1.row < p2.row || (p1.row === p2.row && p1.col < p2.col)) {
+      return `${p1.row},${p1.col}-${p2.row},${p2.col}`;
+    }
+    return `${p2.row},${p2.col}-${p1.row},${p1.col}`;
   }
 }
 
@@ -509,6 +749,7 @@ export function generateLevelWithWord(
         word,
         letterPositions
       );
+      const walls = generator["generateWalls"](cols, rows, path, difficulty);
 
       return {
         word,
@@ -518,6 +759,7 @@ export function generateLevelWithWord(
         gridCols: cols,
         gridRows: rows,
         letterOrderByPosition,
+        walls,
       };
     }
   }
