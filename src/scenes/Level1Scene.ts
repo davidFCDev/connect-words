@@ -710,7 +710,10 @@ export class Level1Scene extends Phaser.Scene {
         // Detener y limpiar la música actual completamente
         if (this.backgroundMusic) {
           if (this.musicEndedHandler) {
-            this.backgroundMusic.removeEventListener("ended", this.musicEndedHandler);
+            this.backgroundMusic.removeEventListener(
+              "ended",
+              this.musicEndedHandler
+            );
             this.musicEndedHandler = null;
           }
           this.backgroundMusic.pause();
@@ -2670,18 +2673,14 @@ export class Level1Scene extends Phaser.Scene {
 
   // Obtener etiqueta del streak para el HUD (breve)
   private getStreakLabel(streak: number): string {
-    if (streak >= 10) return "🔥MAX";
-    if (streak >= 7) return "🔥x" + streak;
-    if (streak >= 5) return "⚡x" + streak;
-    if (streak >= 3) return "✨x" + streak;
     return "x" + streak;
   }
 
   // Obtener texto del bonus streak para la pantalla de victoria
   private getStreakBonusText(streak: number): string {
-    if (streak >= 10) return "🔥 UNSTOPPABLE x" + streak + "! 🔥";
-    if (streak >= 7) return "⚡ ON FIRE x" + streak + "! ⚡";
-    if (streak >= 5) return "✨ AMAZING x" + streak + "! ✨";
+    if (streak >= 10) return "UNSTOPPABLE x" + streak + "!";
+    if (streak >= 7) return "ON FIRE x" + streak + "!";
+    if (streak >= 5) return "AMAZING x" + streak + "!";
     if (streak >= 3) return "STREAK x" + streak + "!";
     return "x" + streak + " COMBO!";
   }
@@ -2735,18 +2734,13 @@ export class Level1Scene extends Phaser.Scene {
     // Mostrar multiplicador de streak si aplica
     if (Level1Scene.perfectStreak >= 2) {
       const streakLabel = this.getStreakBonusText(Level1Scene.perfectStreak);
-      const bonusText = this.add.text(
-        width / 2,
-        height / 2 + 10,
-        streakLabel,
-        {
-          fontFamily: "Arial Black, Arial",
-          fontSize: "28px",
-          color: "#00ffcc",
-          stroke: "#000000",
-          strokeThickness: 3,
-        }
-      );
+      const bonusText = this.add.text(width / 2, height / 2 + 10, streakLabel, {
+        fontFamily: "Arial Black, Arial",
+        fontSize: "28px",
+        color: "#00ffcc",
+        stroke: "#000000",
+        strokeThickness: 3,
+      });
       bonusText.setOrigin(0.5);
       bonusText.setDepth(1001);
       bonusText.setAlpha(0);
