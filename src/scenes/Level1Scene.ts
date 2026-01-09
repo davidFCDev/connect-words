@@ -707,6 +707,12 @@ export class Level1Scene extends Phaser.Scene {
       window.FarcadeSDK.onPlayAgain(() => {
         // Reiniciar streak de perfects al empezar de nuevo
         Level1Scene.perfectStreak = 0;
+        // Reiniciar la música desde el principio
+        Level1Scene.musicStarted = false;
+        if (this.backgroundMusic) {
+          this.backgroundMusic.pause();
+          this.backgroundMusic.currentTime = 0;
+        }
         this.scene.restart({ level: 1, score: 0 });
       });
     }
