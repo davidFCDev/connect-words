@@ -418,7 +418,7 @@ export class Level1Scene extends Phaser.Scene {
     title.setOrigin(0.5, 0.5);
     this.tutorialOverlay.add(title);
 
-    // Texto destacado "FILL ALL CELLS!" en amarillo neón grande
+    // Texto destacado "FILL ALL CELLS!" en cian neón grande
     const fillAllText = this.add.text(
       width / 2,
       height / 2 - 70,
@@ -426,12 +426,12 @@ export class Level1Scene extends Phaser.Scene {
       {
         fontFamily: '"Orbitron", sans-serif',
         fontSize: "32px",
-        color: "#ffff00",
+        color: "#00ffcc",
         fontStyle: "bold",
         shadow: {
           offsetX: 0,
           offsetY: 0,
-          color: "#ffff00",
+          color: "#00ffcc",
           blur: 15,
           fill: true,
         },
@@ -2571,45 +2571,41 @@ export class Level1Scene extends Phaser.Scene {
 
   // Animación de onda suave de vibración de celdas (de abajo hacia arriba)
   private createVictoryWaveAnimation(): void {
-    // Obtener todas las celdas ordenadas por fila (de abajo hacia arriba)
-    const allCells: Cell[] = [];
-    for (let row = 0; row < GRID_ROWS; row++) {
+    // Onda suave de abajo hacia arriba - iteramos por filas
+    for (let row = GRID_ROWS - 1; row >= 0; row--) {
+      // Delay basado en la distancia desde abajo (fila más baja = row más alto = primero)
+      const rowDelay = (GRID_ROWS - 1 - row) * 80;
+
       for (let col = 0; col < GRID_COLS; col++) {
         if (this.cells[row] && this.cells[row][col]) {
-          allCells.push(this.cells[row][col]);
+          const cell = this.cells[row][col];
+          const originalY = cell.graphics.y;
+
+          // Onda hacia arriba suave
+          this.tweens.add({
+            targets: cell.graphics,
+            y: originalY - 6,
+            duration: 200,
+            delay: rowDelay,
+            ease: "Sine.easeOut",
+            yoyo: true,
+            onComplete: () => {
+              cell.graphics.y = originalY; // Asegurar posición original
+            },
+          });
+
+          // Scale sutil sincronizado
+          this.tweens.add({
+            targets: cell.graphics,
+            scaleX: 1.04,
+            scaleY: 1.04,
+            duration: 180,
+            delay: rowDelay + 20,
+            ease: "Sine.easeInOut",
+            yoyo: true,
+          });
         }
       }
-    }
-
-    // Ordenar por fila de abajo hacia arriba
-    allCells.sort((a, b) => b.row - a.row);
-
-    // Crear onda de vibración suave
-    for (let i = 0; i < allCells.length; i++) {
-      const cell = allCells[i];
-      const delay = (GRID_ROWS - 1 - cell.row) * 60 + cell.col * 15; // Delay basado en fila
-
-      // Vibración muy suave hacia arriba
-      this.tweens.add({
-        targets: cell.graphics,
-        y: cell.graphics.y - 4,
-        duration: 150,
-        delay: delay,
-        ease: "Sine.easeOut",
-        yoyo: true,
-        repeat: 1,
-      });
-
-      // Pequeño scale pulse
-      this.tweens.add({
-        targets: cell.graphics,
-        scaleX: 1.03,
-        scaleY: 1.03,
-        duration: 120,
-        delay: delay + 50,
-        ease: "Sine.easeInOut",
-        yoyo: true,
-      });
     }
   }
 
