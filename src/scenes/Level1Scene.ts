@@ -409,7 +409,7 @@ export class Level1Scene extends Phaser.Scene {
     this.tutorialOverlay.add(overlay);
 
     // Título "HOW TO PLAY" - más grande y centrado
-    const title = this.add.text(width / 2, height / 2 - 120, "HOW TO PLAY", {
+    const title = this.add.text(width / 2, height / 2 - 140, "HOW TO PLAY", {
       fontFamily: '"Orbitron", sans-serif',
       fontSize: "42px",
       color: "#b7ff01",
@@ -418,17 +418,50 @@ export class Level1Scene extends Phaser.Scene {
     title.setOrigin(0.5, 0.5);
     this.tutorialOverlay.add(title);
 
+    // Texto destacado "FILL ALL CELLS!" en amarillo neón grande
+    const fillAllText = this.add.text(
+      width / 2,
+      height / 2 - 70,
+      "✦ FILL ALL CELLS! ✦",
+      {
+        fontFamily: '"Orbitron", sans-serif',
+        fontSize: "32px",
+        color: "#ffff00",
+        fontStyle: "bold",
+        shadow: {
+          offsetX: 0,
+          offsetY: 0,
+          color: "#ffff00",
+          blur: 15,
+          fill: true,
+        },
+      }
+    );
+    fillAllText.setOrigin(0.5, 0.5);
+    this.tutorialOverlay.add(fillAllText);
+
+    // Animación de pulso para el texto destacado
+    this.tweens.add({
+      targets: fillAllText,
+      scale: { from: 1, to: 1.08 },
+      alpha: { from: 1, to: 0.85 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
     // Instrucciones principales - más grandes y centradas
     const instructions = this.add.text(
       width / 2,
-      height / 2,
-      "Drag the energy through all cells\nto spell the word.\nConnect letters in order!",
+      height / 2 + 10,
+      "Drag the energy to spell the word.\nConnect letters in order!",
       {
         fontFamily: '"Orbitron", sans-serif',
-        fontSize: "26px",
+        fontSize: "24px",
         color: "#ffffff",
         align: "center",
-        lineSpacing: 14,
+        lineSpacing: 12,
       }
     );
     instructions.setOrigin(0.5, 0.5);
@@ -948,8 +981,8 @@ export class Level1Scene extends Phaser.Scene {
 
     // Fondo de la celda - visible en móviles
     const cellBg = this.add.graphics();
-    cellBg.fillStyle(0x0a0a12, 1);
-    cellBg.lineStyle(1, NEON_COLORS.offColor, 0.4);
+    cellBg.fillStyle(0x14141e, 1);
+    cellBg.lineStyle(1, NEON_COLORS.offColor, 0.5);
     cellBg.fillRoundedRect(
       -CELL_SIZE / 2,
       -CELL_SIZE / 2,
@@ -989,7 +1022,7 @@ export class Level1Scene extends Phaser.Scene {
     if (letter) {
       // Circunferencia alrededor de la letra (para conectar líneas)
       letterCircle = this.add.circle(0, 0, 32);
-      letterCircle.setStrokeStyle(2, 0x3a3a48, 0.6);
+      letterCircle.setStrokeStyle(2, 0x4a4a58, 0.7);
       container.add(letterCircle);
 
       // Es una letra - estilo moderno, visible cuando apagada
@@ -1274,7 +1307,7 @@ export class Level1Scene extends Phaser.Scene {
 
     // Fondo visible para las letras
     const bgBar = this.add.graphics();
-    bgBar.fillStyle(0x0c0c14, 0.95);
+    bgBar.fillStyle(0x16161f, 0.95);
     bgBar.fillRoundedRect(-bgWidth / 2, -40, bgWidth, 80, 16);
     this.wordContainer.add(bgBar);
 
@@ -1328,7 +1361,7 @@ export class Level1Scene extends Phaser.Scene {
 
     // Fondo del círculo (gris oscuro)
     const bgCircle = this.add.graphics();
-    bgCircle.lineStyle(lineWidth, 0x0c0c14, 1);
+    bgCircle.lineStyle(lineWidth, 0x2a2a38, 1);
     bgCircle.beginPath();
     bgCircle.arc(0, 0, circleRadius, 0, Math.PI * 2, false);
     bgCircle.strokePath();
@@ -1411,7 +1444,7 @@ export class Level1Scene extends Phaser.Scene {
 
     // Fondo del marcador digital - tamaño fijo
     const scoreBg = this.add.graphics();
-    scoreBg.fillStyle(0x0c0c14, 0.95);
+    scoreBg.fillStyle(0x16161f, 0.95);
     scoreBg.fillRoundedRect(
       -paddingH,
       -22 - paddingV,
@@ -1425,7 +1458,7 @@ export class Level1Scene extends Phaser.Scene {
     const dimDigits = this.add.text(fixedWidth / 2, 0, "00000", {
       fontFamily: '"Orbitron", sans-serif',
       fontSize: "26px",
-      color: "#1a1a24",
+      color: "#2a2a38",
       fontStyle: "bold",
     });
     dimDigits.setOrigin(0.5, 0.5);
@@ -1474,7 +1507,7 @@ export class Level1Scene extends Phaser.Scene {
     // Fondo rectangular con bordes redondeados (mismo estilo que el fondo de la palabra)
     const buttonHeight = 80;
     const bg = this.add.graphics();
-    bg.fillStyle(0x0c0c14, 0.95);
+    bg.fillStyle(0x16161f, 0.95);
     bg.fillRoundedRect(
       -buttonWidth / 2,
       -buttonHeight / 2,
@@ -1992,8 +2025,8 @@ export class Level1Scene extends Phaser.Scene {
     // Restaurar fondo original (sin iluminación)
     if (cell.cellBg) {
       cell.cellBg.clear();
-      cell.cellBg.fillStyle(0x0a0a12, 1);
-      cell.cellBg.lineStyle(1, NEON_COLORS.offColor, 0.4);
+      cell.cellBg.fillStyle(0x14141e, 1);
+      cell.cellBg.lineStyle(1, NEON_COLORS.offColor, 0.5);
       cell.cellBg.fillRoundedRect(
         -CELL_SIZE / 2,
         -CELL_SIZE / 2,
@@ -2023,7 +2056,7 @@ export class Level1Scene extends Phaser.Scene {
       cell.letterText.setColor("#4a4a5a");
       // Apagar la circunferencia
       if (cell.letterCircle) {
-        cell.letterCircle.setStrokeStyle(2, 0x3a3a48, 0.6);
+        cell.letterCircle.setStrokeStyle(2, 0x4a4a58, 0.7);
       }
     } else if (cell.dotGraphic) {
       cell.dotGraphic.setFillStyle(0x2a2a38);
@@ -2449,6 +2482,9 @@ export class Level1Scene extends Phaser.Scene {
       }
     }
 
+    // Animación de onda de vibración suave de celdas (de abajo hacia arriba)
+    this.createVictoryWaveAnimation();
+
     // Efecto de flash más intenso
     const flash = this.add.rectangle(
       width / 2,
@@ -2531,6 +2567,50 @@ export class Level1Scene extends Phaser.Scene {
 
     // Fallback: si el evento no se dispara en 1 segundo, forzar la transición
     this.time.delayedCall(1000, doRestart);
+  }
+
+  // Animación de onda suave de vibración de celdas (de abajo hacia arriba)
+  private createVictoryWaveAnimation(): void {
+    // Obtener todas las celdas ordenadas por fila (de abajo hacia arriba)
+    const allCells: Cell[] = [];
+    for (let row = 0; row < GRID_ROWS; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
+        if (this.cells[row] && this.cells[row][col]) {
+          allCells.push(this.cells[row][col]);
+        }
+      }
+    }
+
+    // Ordenar por fila de abajo hacia arriba
+    allCells.sort((a, b) => b.row - a.row);
+
+    // Crear onda de vibración suave
+    for (let i = 0; i < allCells.length; i++) {
+      const cell = allCells[i];
+      const delay = (GRID_ROWS - 1 - cell.row) * 60 + cell.col * 15; // Delay basado en fila
+
+      // Vibración muy suave hacia arriba
+      this.tweens.add({
+        targets: cell.graphics,
+        y: cell.graphics.y - 4,
+        duration: 150,
+        delay: delay,
+        ease: "Sine.easeOut",
+        yoyo: true,
+        repeat: 1,
+      });
+
+      // Pequeño scale pulse
+      this.tweens.add({
+        targets: cell.graphics,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        duration: 120,
+        delay: delay + 50,
+        ease: "Sine.easeInOut",
+        yoyo: true,
+      });
+    }
   }
 
   private createVictoryElectricity(): void {
