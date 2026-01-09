@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>remix-connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
     <style>
       body {
@@ -13,7 +20,7 @@
         justify-content: center;
         align-items: center;
       }
-      
+
       canvas {
         outline: none;
         margin: 0;
@@ -25,16 +32,17 @@
       // Development only - build script replaces this entire block
       if (import.meta.env.DEV) {
         // Load CSS for dev dashboard
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = '/node_modules/@insidethesim/remix-dev/dist/styles/remix-dev.css'
-        document.head.appendChild(link)
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href =
+          "/node_modules/@insidethesim/remix-dev/dist/styles/remix-dev.css";
+        document.head.appendChild(link);
 
-        import('@insidethesim/remix-dev/dev-init')
+        import("@insidethesim/remix-dev/dev-init");
 
         // Only load the game in iframe, not in top window (dashboard handles iframes)
         if (window !== window.top) {
-          import('/src/main.ts')
+          import("/src/main.ts");
         }
       }
     </script>

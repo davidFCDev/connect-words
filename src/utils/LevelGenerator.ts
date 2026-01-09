@@ -479,7 +479,7 @@ export class LevelGenerator {
   }
 
   // Generar paredes que no bloqueen el camino hamiltoniano
-  // Las paredes aparecen desde nivel 10 y aumentan progresivamente
+  // Las paredes aparecen desde nivel 7 y aumentan progresivamente
   // Cada muro tiene 2-3 segmentos y puede formar líneas rectas o esquinas
   private generateWalls(
     cols: number,
@@ -487,8 +487,8 @@ export class LevelGenerator {
     path: Position[],
     difficulty: number
   ): Wall[] {
-    // Solo generar paredes a partir del nivel 10
-    if (difficulty < 10) {
+    // Solo generar paredes a partir del nivel 7
+    if (difficulty < 7) {
       return [];
     }
 
@@ -502,11 +502,13 @@ export class LevelGenerator {
     }
 
     // Calcular cuántos muros generar basado en la dificultad
-    // Nivel 10-11: 2 muros, Nivel 12-14: 3 muros, Nivel 15+: 4 muros
+    // Nivel 7-8: 1 muro, Nivel 9-10: 2 muros, Nivel 11-13: 3 muros, Nivel 14+: 4 muros
     let numWalls: number;
-    if (difficulty <= 11) {
+    if (difficulty <= 8) {
+      numWalls = 1;
+    } else if (difficulty <= 10) {
       numWalls = 2;
-    } else if (difficulty <= 14) {
+    } else if (difficulty <= 13) {
       numWalls = 3;
     } else {
       numWalls = 4;
