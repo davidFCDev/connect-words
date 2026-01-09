@@ -1454,17 +1454,7 @@ export class Level1Scene extends Phaser.Scene {
     );
     scoreContainer.add(scoreBg);
 
-    // Efecto de segmentos "apagados" estilo LCD
-    const dimDigits = this.add.text(fixedWidth / 2, 0, "00000", {
-      fontFamily: '"Orbitron", sans-serif',
-      fontSize: "26px",
-      color: "#2a2a38",
-      fontStyle: "bold",
-    });
-    dimDigits.setOrigin(0.5, 0.5);
-    scoreContainer.add(dimDigits);
-
-    // Score real encima
+    // Score real
     this.scoreText = this.add.text(
       fixedWidth / 2,
       0,
@@ -1492,7 +1482,8 @@ export class Level1Scene extends Phaser.Scene {
 
     // Mostrar streak si existe
     if (Level1Scene.perfectStreak >= 2) {
-      this.streakText.setText(`x${Level1Scene.perfectStreak}`);
+      const streakLabel = this.getStreakLabel(Level1Scene.perfectStreak);
+      this.streakText.setText(streakLabel);
       this.streakText.setAlpha(1);
     }
   }
@@ -2450,7 +2441,8 @@ export class Level1Scene extends Phaser.Scene {
     // Actualizar display del streak
     if (this.streakText) {
       if (Level1Scene.perfectStreak >= 2) {
-        this.streakText.setText(`x${Level1Scene.perfectStreak}`);
+        const streakLabel = this.getStreakLabel(Level1Scene.perfectStreak);
+        this.streakText.setText(streakLabel);
         this.streakText.setVisible(true);
         // Animación del streak
         this.tweens.add({
@@ -2656,6 +2648,24 @@ export class Level1Scene extends Phaser.Scene {
     }
   }
 
+  // Obtener etiqueta del streak para el HUD (breve)
+  private getStreakLabel(streak: number): string {
+    if (streak >= 10) return "🔥MAX";
+    if (streak >= 7) return "🔥x" + streak;
+    if (streak >= 5) return "⚡x" + streak;
+    if (streak >= 3) return "✨x" + streak;
+    return "x" + streak;
+  }
+
+  // Obtener texto del bonus streak para la pantalla de victoria
+  private getStreakBonusText(streak: number): string {
+    if (streak >= 10) return "🔥 UNSTOPPABLE x" + streak + "! 🔥";
+    if (streak >= 7) return "⚡ ON FIRE x" + streak + "! ⚡";
+    if (streak >= 5) return "✨ AMAZING x" + streak + "! ✨";
+    if (streak >= 3) return "STREAK x" + streak + "!";
+    return "x" + streak + " COMBO!";
+  }
+
   private showPerfectText(): void {
     const { width, height } = GameSettings.canvas;
 
@@ -2704,10 +2714,11 @@ export class Level1Scene extends Phaser.Scene {
 
     // Mostrar multiplicador de streak si aplica
     if (Level1Scene.perfectStreak >= 2) {
+      const streakLabel = this.getStreakBonusText(Level1Scene.perfectStreak);
       const bonusText = this.add.text(
         width / 2,
         height / 2 + 10,
-        `STREAK x${Level1Scene.perfectStreak}!`,
+        streakLabel,
         {
           fontFamily: "Arial Black, Arial",
           fontSize: "28px",
