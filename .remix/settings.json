@@ -1,7 +1,7 @@
 {
   "panelStates": {
-    "showBuildPanel": false,
-    "showGameStatePanel": true,
+    "showBuildPanel": true,
+    "showGameStatePanel": false,
     "showBoostConfigPanel": false
   },
   "devSettings": {

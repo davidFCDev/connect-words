@@ -732,9 +732,17 @@ export class Level1Scene extends Phaser.Scene {
     if (this.isGameOver) return;
     this.isGameOver = true;
 
-    // Enviar score al SDK - el SDK gestiona la pantalla de game over
-    // Enviar mínimo 1 punto para que quede registrado en Farcade
-    const finalScore = Math.max(1, this.score);
+    // Calcular score basado en progreso si no hay score acumulado
+    // El score mínimo es proporcional al % del tablero rellenado
+    let finalScore = this.score;
+    if (finalScore === 0 && this.path.length > 0) {
+      // Calcular puntos por progreso: hasta 50 puntos por completar el tablero
+      const progressPercent = this.path.length / this.totalCells;
+      finalScore = Math.floor(progressPercent * 50);
+    }
+    // Mínimo 1 punto para que quede registrado
+    finalScore = Math.max(1, finalScore);
+
     if (window.FarcadeSDK?.singlePlayer?.actions?.gameOver) {
       window.FarcadeSDK.singlePlayer.actions.gameOver({ score: finalScore });
     }
