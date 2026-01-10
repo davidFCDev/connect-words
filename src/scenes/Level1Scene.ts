@@ -1695,7 +1695,7 @@ export class Level1Scene extends Phaser.Scene {
     
     // Contenedor del botón en la esquina superior derecha
     // width - 40 es un poco justo, width - 60 mejor
-    this.supportButton = this.add.container(width - 50, 70); // Alineado con altura del Score (Y=70)
+    this.supportButton = this.add.container(width - 70, 85); // Más abajo y a la izquierda
     this.supportButton.setDepth(100);
 
     // Dibujar corazón estilo neón
@@ -1715,7 +1715,7 @@ export class Level1Scene extends Phaser.Scene {
     // Sin animación de latido
 
     // Interactividad
-    const hitArea = new Phaser.Geom.Circle(0, 0, 25);
+    const hitArea = new Phaser.Geom.Circle(0, 0, 30); // Hit area un poco más grande
     this.supportButton.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
     
     this.supportButton.on("pointerdown", () => {
@@ -1754,11 +1754,20 @@ export class Level1Scene extends Phaser.Scene {
     // Phaser Graphics no tiene bezierCurveTo, usamos Path para generar interpolación
     const path = new Phaser.Curves.Path(0, 10);
     
-    // Mapeo de bezierCurveTo (Canvas: cp1, cp2, end) a cubicBezierTo (Phaser: end, cp1, cp2)
-    path.cubicBezierTo(-10, -5, 0, 10, -10, 0);
-    path.cubicBezierTo(0, -5, -10, -15, 0, -15);
-    path.cubicBezierTo(10, -5, 0, -15, 10, -15);
-    path.cubicBezierTo(0, 10, 10, 0, 0, 10);
+    // Modificado para hacerlo más ancho (wide heart)
+    // Mapeo (endX, endY, cp1X, cp1Y, cp2X, cp2Y)
+    
+    // De punta inferior (0,10) a lado izquierdo (-15, -6) (más ancho que -10)
+    // cp1=(0,10), cp2=(-15,0)
+    path.cubicBezierTo(-15, -6, 0, 10, -15, 0);
+    
+    // De lado izquierdo (-15, -6) a centro superior (0, -15)
+    // cp1=(-15, -16) (muy arriba para curva pronunciada), cp2=(0, -16)
+    path.cubicBezierTo(0, -13, -15, -18, 0, -18);
+    
+    // Simétrico derecho
+    path.cubicBezierTo(15, -6, 0, -18, 15, -18);
+    path.cubicBezierTo(0, 10, 15, 0, 0, 10);
     
     const points = path.getPoints(40); // 40 segmentos para suavidad
 
