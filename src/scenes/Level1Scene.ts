@@ -1715,22 +1715,44 @@ export class Level1Scene extends Phaser.Scene {
     // Detener pulso anterior y crear uno nuevo en la celda actual
     if (this.currentCellPulseTween) {
       this.currentCellPulseTween.stop();
-      // Restaurar escala de la celda anterior
+      // Restaurar escala del objeto tweaneado anterior (cellBg o dotGraphic)
       const prevTargets = this.currentCellPulseTween.targets;
       if (prevTargets && prevTargets.length > 0) {
         (prevTargets[0] as Phaser.GameObjects.Graphics).setScale(1);
       }
     }
-    // Pulso suave en la celda actual (escala mínima para no afectar FPS)
-    this.currentCellPulseTween = this.tweens.add({
-      targets: cell.graphics,
-      scaleX: { from: 1, to: 1.04 },
-      scaleY: { from: 1, to: 1.04 },
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+
+    // Identificar el target para el pulso (evitar escalar el container entero con texto)
+    let pulseTarget:
+      | Phaser.GameObjects.Graphics
+      | Phaser.GameObjects.Arc
+      | undefined;
+
+    if (cell.type === "letter") {
+      // Para letras, pulsamos el fondo (cellBg) y el círculo
+      // Optimización: Solo pulsamos el fondo por ahora para max FPS
+      // El texto se mantiene estatico y nítido
+      pulseTarget = cell.cellBg;
+    } else {
+      // Para puntos, pulsamos el gráfico del punto
+      pulseTarget = cell.dotGraphic;
+    }
+
+    // Pulso suave en el target específico
+    if (pulseTarget) {
+      this.currentCellPulseTween = this.tweens.add({
+        targets: pulseTarget,
+        scaleX: { from: 1, to: 1.1 }, // Un poco más intenso ya que es solo el fondo
+        scaleY: { from: 1, to: 1.1 },
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    } else {
+      // Fallback cauto (no debería ocurrir)
+      this.currentCellPulseTween = null;
+    }
 
     // Efectos visuales
     this.animateCellActivation(cell);
@@ -1790,19 +1812,36 @@ export class Level1Scene extends Phaser.Scene {
     // Mover el pulso a la nueva celda actual
     if (this.currentCellPulseTween) {
       this.currentCellPulseTween.stop();
-      // Restaurar escala de la celda anterior
+      // Restaurar escala del target anterior
+      const prevTargets = this.currentCellPulseTween.targets;
+      if (prevTargets && prevTargets.length > 0) {
+        (prevTargets[0] as Phaser.GameObjects.Graphics).setScale(1);
+      }
+      // Aseguramos que el container también esté a 1 por seguridad
       cell.graphics.setScale(1);
     }
+    
     if (this.currentCell) {
-      this.currentCellPulseTween = this.tweens.add({
-        targets: this.currentCell.graphics,
-        scaleX: { from: 1, to: 1.04 },
-        scaleY: { from: 1, to: 1.04 },
-        duration: 600,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+      // Identificar target para el nuevo pulso logicamente igual que en activateCell
+      let pulseTarget: Phaser.GameObjects.Graphics | Phaser.GameObjects.Arc | undefined;
+      
+      if (this.currentCell.type === "letter") {
+        pulseTarget = this.currentCell.cellBg;
+      } else {
+        pulseTarget = this.currentCell.dotGraphic;
+      }
+
+      if (pulseTarget) {
+        this.currentCellPulseTween = this.tweens.add({
+          targets: pulseTarget,
+          scaleX: { from: 1, to: 1.1 },
+          scaleY: { from: 1, to: 1.1 },
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
     } else {
       this.currentCellPulseTween = null;
     }
