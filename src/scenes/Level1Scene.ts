@@ -1768,18 +1768,21 @@ export class Level1Scene extends Phaser.Scene {
     graphics.translateCanvas(x, y - 5); // Centrar un poco mejor verticalmente
     graphics.scaleCanvas(s, s);
     
-    graphics.beginPath();
-    // Curvas de corazón estándar
-    graphics.moveTo(0, 10);
-    graphics.bezierCurveTo(0, 10, -10, 0, -10, -5);
-    graphics.bezierCurveTo(-10, -15, 0, -15, 0, -5);
-    graphics.bezierCurveTo(0, -15, 10, -15, 10, -5);
-    graphics.bezierCurveTo(10, 0, 0, 10, 0, 10);
+    // Phaser Graphics no tiene bezierCurveTo, usamos Path para generar interpolación
+    const path = new Phaser.Curves.Path(0, 10);
     
+    // Mapeo de bezierCurveTo (Canvas: cp1, cp2, end) a cubicBezierTo (Phaser: end, cp1, cp2)
+    path.cubicBezierTo(-10, -5, 0, 10, -10, 0);
+    path.cubicBezierTo(0, -5, -10, -15, 0, -15);
+    path.cubicBezierTo(10, -5, 0, -15, 10, -15);
+    path.cubicBezierTo(0, 10, 10, 0, 0, 10);
+    
+    const points = path.getPoints(40); // 40 segmentos para suavidad
+
     if (fill) {
-      graphics.fillPath();
+      graphics.fillPoints(points);
     } else {
-      graphics.strokePath();
+      graphics.strokePoints(points);
     }
     
     graphics.restore();
