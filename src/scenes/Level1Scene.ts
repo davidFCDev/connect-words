@@ -209,6 +209,11 @@ export class Level1Scene extends Phaser.Scene {
   private currentLevel: number = 1;
   private currentLevelConfig!: LevelConfig;
 
+  // Sistema de Soporte (Donaciones)
+  private supportButton: Phaser.GameObjects.Container | null = null;
+  private supportOverlay: Phaser.GameObjects.Container | null = null;
+  private isSupportOpen: boolean = false;
+
   // Sistema de Perfect y Streak
   private usedUndo: boolean = false; // Si usó marcha atrás
   private static perfectStreak: number = 0; // Racha de perfects (persistente)
@@ -337,6 +342,7 @@ export class Level1Scene extends Phaser.Scene {
     this.createWordDisplay();
     this.setupInput();
     this.createInstructions();
+    this.createSupportUI();
 
     // Iniciar el camino desde la celda de inicio
     const startCell =
@@ -599,8 +605,8 @@ export class Level1Scene extends Phaser.Scene {
   private lastDisplayedTime: number = -1;
 
   update(time: number, delta: number): void {
-    // No actualizar nada si el juego está pausado (tutorial)
-    if (this.gamePaused) {
+    // No actualizar nada si el juego está pausado (tutorial o soporte)
+    if (this.gamePaused || this.isSupportOpen) {
       return;
     }
 
@@ -728,6 +734,20 @@ export class Level1Scene extends Phaser.Scene {
           this.backgroundMusic.muted = data.isMuted;
         }
       });
+    }
+
+    // Handler para compras completadas (soporte)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window.FarcadeSDK as any)?.onPurchaseComplete) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window.FarcadeSDK as any).onPurchaseComplete(
+        (data: { success: boolean }) => {
+          if (data.success) {
+            // Si la compra fue exitosa, ocultar el botón de soporte inmediatamente
+            this.handleSupportSuccess();
+          }
+        }
+      );
     }
 
     // Aplicar estado de mute actual (por si viene de nivel anterior)
@@ -1659,6 +1679,286 @@ export class Level1Scene extends Phaser.Scene {
 
   private createInstructions(): void {
     // Sin UI de texto - el progreso se ve en las celdas iluminadas
+  }
+
+  // ============ SISTEMA DE SOPORTE (DONACIONES) ============
+
+  private createSupportUI(): void {
+    // Verificar si ya tiene el item de soporte
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sdk = window.FarcadeSDK as any;
+    if (sdk?.hasItem && sdk.hasItem("support-tip")) {
+      return;
+    }
+
+    const { width } = GameSettings.canvas;
+    
+    // Contenedor del botón en la esquina superior derecha
+    // width - 40 es un poco justo, width - 60 mejor
+    this.supportButton = this.add.container(width - 50, 45); // Un poco más cerca del borde superior
+    this.supportButton.setDepth(100);
+
+    // Dibujar corazón estilo neón
+    const heart = this.add.graphics();
+    
+    // Glow exterior
+    heart.lineStyle(4, NEON_COLORS.pathColor, 0.4);
+    
+    // Dibujar glow
+    this.drawHeartPath(heart, 0, 0, 1.2);
+    
+    // Línea principal
+    heart.lineStyle(2, NEON_COLORS.pathColor, 1);
+    this.drawHeartPath(heart, 0, 0, 0.9);
+
+    // Relleno sutil
+    heart.fillStyle(NEON_COLORS.pathColor, 0.15);
+    this.drawHeartPath(heart, 0, 0, 0.9, true);
+
+    this.supportButton.add(heart);
+
+    // Animación de latido
+    this.tweens.add({
+      targets: this.supportButton,
+      scale: { from: 1, to: 1.15 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut"
+    });
+
+    // Interactividad
+    const hitArea = new Phaser.Geom.Circle(0, 0, 25);
+    this.supportButton.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    
+    this.supportButton.on("pointerdown", () => {
+      this.openSupportOverlay();
+    });
+    
+    // Cursor hand
+    this.supportButton.on("pointerover", () => {
+      this.input.setDefaultCursor("pointer");
+      heart.clear();
+      // Más brillante al pasar el mouse
+      heart.lineStyle(4, NEON_COLORS.pathColor, 0.6);
+      this.drawHeartPath(heart, 0, 0, 1.25);
+      heart.lineStyle(2, 0xffffff, 1);
+      this.drawHeartPath(heart, 0, 0, 0.95);
+      heart.fillStyle(NEON_COLORS.pathColor, 0.3);
+      this.drawHeartPath(heart, 0, 0, 0.95, true);
+    });
+    
+    this.supportButton.on("pointerout", () => {
+      this.input.setDefaultCursor("default");
+      heart.clear();
+      // Restaurar estilo normal
+      heart.lineStyle(4, NEON_COLORS.pathColor, 0.4);
+      this.drawHeartPath(heart, 0, 0, 1.2);
+      heart.lineStyle(2, NEON_COLORS.pathColor, 1);
+      this.drawHeartPath(heart, 0, 0, 0.9);
+      heart.fillStyle(NEON_COLORS.pathColor, 0.15);
+      this.drawHeartPath(heart, 0, 0, 0.9, true);
+    });
+  }
+
+  private drawHeartPath(graphics: Phaser.GameObjects.Graphics, x: number, y: number, scale: number = 1, fill: boolean = false): void {
+    const s = 1.3 * scale; // Escala base
+    
+    graphics.save();
+    graphics.translateCanvas(x, y - 5); // Centrar un poco mejor verticalmente
+    graphics.scaleCanvas(s, s);
+    
+    graphics.beginPath();
+    // Curvas de corazón estándar
+    graphics.moveTo(0, 10);
+    graphics.bezierCurveTo(0, 10, -10, 0, -10, -5);
+    graphics.bezierCurveTo(-10, -15, 0, -15, 0, -5);
+    graphics.bezierCurveTo(0, -15, 10, -15, 10, -5);
+    graphics.bezierCurveTo(10, 0, 0, 10, 0, 10);
+    
+    if (fill) {
+      graphics.fillPath();
+    } else {
+      graphics.strokePath();
+    }
+    
+    graphics.restore();
+  }
+
+  private openSupportOverlay(): void {
+    if (this.supportOverlay) return;
+    
+    this.isSupportOpen = true; // Flag para pausar el juego
+    
+    const { width, height } = GameSettings.canvas;
+    
+    this.supportOverlay = this.add.container(0, 0);
+    this.supportOverlay.setDepth(2000); // Muy por encima de todo
+    this.supportOverlay.setAlpha(0);
+    
+    // Fondo oscuro
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.85);
+    bg.fillRect(0, 0, width, height);
+    bg.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains);
+    this.supportOverlay.add(bg);
+    
+    // Contenedor del modal
+    const modalY = height / 2;
+    
+    // Título
+    const title = this.add.text(width / 2, modalY - 100, "SUPPORT MY GAMES", {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "32px",
+      color: "#ffffff",
+      fontStyle: "bold"
+    });
+    title.setOrigin(0.5);
+    this.supportOverlay.add(title);
+    
+    // Subtítulo
+    const sub = this.add.text(width / 2, modalY - 40, "Enjoying the game? Send a tip!", {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "20px",
+      color: "#aaaaaa"
+    });
+    sub.setOrigin(0.5);
+    this.supportOverlay.add(sub);
+    
+    // Coste
+    const cost = this.add.text(width / 2, modalY + 10, "500 CREDITS", {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "28px",
+      color: "#b7ff01", // Verde neón
+      fontStyle: "bold",
+      shadow: { blur: 10, color: "#b7ff01", fill: true, offsetX: 0, offsetY: 0 }
+    });
+    cost.setOrigin(0.5);
+    this.supportOverlay.add(cost);
+    
+    // Botón Support
+    const btnContainer = this.add.container(width / 2, modalY + 90);
+    
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(NEON_COLORS.pathColor, 0.2); // Fondo cian suave
+    btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
+    btnBg.lineStyle(2, NEON_COLORS.pathColor, 1);
+    btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+    btnContainer.add(btnBg);
+    
+    const btnText = this.add.text(0, 0, "SUPPORT ❤️", {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "24px",
+      color: "#ffffff",
+      fontStyle: "bold"
+    });
+    btnText.setOrigin(0.5);
+    btnContainer.add(btnText);
+    
+    // Interactividad botón support
+    btnContainer.setInteractive(new Phaser.Geom.Rectangle(-100, -30, 200, 60), Phaser.Geom.Rectangle.Contains);
+    btnContainer.on("pointerover", () => {
+      this.input.setDefaultCursor("pointer");
+      btnBg.clear();
+      btnBg.fillStyle(NEON_COLORS.pathColor, 0.4);
+      btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
+      btnBg.lineStyle(2, 0xffffff, 1);
+      btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+      btnContainer.setScale(1.05);
+    });
+    btnContainer.on("pointerout", () => {
+      this.input.setDefaultCursor("default");
+      btnBg.clear();
+      btnBg.fillStyle(NEON_COLORS.pathColor, 0.2);
+      btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
+      btnBg.lineStyle(2, NEON_COLORS.pathColor, 1);
+      btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+      btnContainer.setScale(1);
+    });
+    btnContainer.on("pointerdown", () => {
+      // Lanzar compra SDK
+      this.triggerPurchase();
+    });
+    
+    this.supportOverlay.add(btnContainer);
+    
+    // Botón Back
+    const backBtn = this.add.text(width / 2, modalY + 160, "BACK", {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "18px",
+      color: "#666666"
+    });
+    backBtn.setOrigin(0.5);
+    backBtn.setInteractive({ useHandCursor: true });
+    backBtn.on("pointerover", () => backBtn.setColor("#ffffff"));
+    backBtn.on("pointerout", () => backBtn.setColor("#666666"));
+    backBtn.on("pointerdown", () => this.closeSupportOverlay());
+    this.supportOverlay.add(backBtn);
+    
+    // Fade in
+    this.tweens.add({
+      targets: this.supportOverlay,
+      alpha: 1,
+      duration: 300
+    });
+  }
+
+  private closeSupportOverlay(): void {
+    if (!this.supportOverlay) return;
+    
+    this.tweens.add({
+      targets: this.supportOverlay,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => {
+        if (this.supportOverlay) {
+          this.supportOverlay.destroy();
+          this.supportOverlay = null;
+        }
+        this.isSupportOpen = false; // Reanudar juego
+      }
+    });
+  }
+
+  private triggerPurchase(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sdk = window.FarcadeSDK as any;
+    
+    if (sdk && sdk.purchase) {
+      sdk.purchase({ item: "support-tip" }).then((result: { success: boolean }) => {
+        if (result.success) {
+          this.handleSupportSuccess();
+        }
+      }).catch((err: any) => {
+        console.warn("Purchase failed or cancelled", err);
+      });
+    } else {
+      console.warn("SDK purchase not available");
+    }
+  }
+
+  private handleSupportSuccess(): void {
+    // Cerrar overlay si está abierto
+    if (this.supportOverlay) {
+      this.closeSupportOverlay();
+    }
+    
+    // Eliminar botón de soporte si existe
+    if (this.supportButton) {
+      this.tweens.add({
+        targets: this.supportButton,
+        scale: 0,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+          this.supportButton?.destroy();
+          this.supportButton = null;
+        }
+      });
+    }
+    
+    // Feedback visual de éxito (confeti o sonido)
+    this.sound.play("connect", { rate: 1.5 }); // Sonido agudo de éxito
   }
 
   private updateProgressText(): void {
