@@ -873,8 +873,13 @@ export class Level1Scene extends Phaser.Scene {
     this.gridStartY = startY;
 
     this.gridContainer = this.add.container(0, 0);
+    this.gridContainer.setDepth(20); // Asegurar que el grid esté por encima del fondo y líneas
+
     this.linesGraphics = this.add.graphics();
+    this.linesGraphics.setDepth(5); // Líneas por debajo de las celdas pero sobre el fondo (-5)
+    
     this.flowGraphics = this.add.graphics(); // Capa para animación de flujo
+    this.flowGraphics.setDepth(6); // Flujo justo encima de las líneas
 
     this.cells = [];
     this.totalCells = 0;
