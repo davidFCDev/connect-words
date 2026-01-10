@@ -195,6 +195,8 @@ export class Level1Scene extends Phaser.Scene {
   // Renderizado de flujo de energía
   private flowGraphics!: Phaser.GameObjects.Graphics;
   private flowOffset: number = 0;
+  // Flag para evitar clear() innecesarios en update
+  private isFlowDrawing: boolean = false;
 
   // Control de animación de electricidad
   private electricityFrame: number = 0;
@@ -1027,7 +1029,7 @@ export class Level1Scene extends Phaser.Scene {
       12
     );
     if (isStart) {
-      shadowOverlay.setAlpha(0); // Sin sombra en la celda inicial
+      shadowOverlay.setVisible(false); // Optimización: no renderizar si alpha es 0
     }
     container.add(shadowOverlay);
 
@@ -1964,6 +1966,10 @@ export class Level1Scene extends Phaser.Scene {
         alpha: 0,
         duration: 180,
         ease: "Power2",
+        onComplete: () => {
+             // Optimización: ocultar completamente al terminar
+             if (cell.shadowOverlay) cell.shadowOverlay.setVisible(false);
+        }
       });
     }
 
@@ -2057,6 +2063,7 @@ export class Level1Scene extends Phaser.Scene {
 
     // Restaurar sombra de oscuridad (muy sutil)
     if (cell.shadowOverlay) {
+      cell.shadowOverlay.setVisible(true); // Asegurar visibilidad
       this.tweens.add({
         targets: cell.shadowOverlay,
         alpha: 0.15,
@@ -2098,9 +2105,17 @@ export class Level1Scene extends Phaser.Scene {
   }
 
   private drawFlowLine(): void {
-    this.flowGraphics.clear();
+    // Si no hay suficiente camino, limpiar y salir (solo si estaba dibujando)
+    if (this.path.length < 2) {
+      if (this.isFlowDrawing) {
+        this.flowGraphics.clear();
+        this.isFlowDrawing = false;
+      }
+      return;
+    }
 
-    if (this.path.length < 2) return;
+    this.flowGraphics.clear();
+    this.isFlowDrawing = true;
 
     // Velocidad más lenta para que se aprecie la forma
     const spacing = 90;
