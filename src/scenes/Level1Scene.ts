@@ -764,9 +764,9 @@ export class Level1Scene extends Phaser.Scene {
   private createBackground(): void {
     const { width, height } = GameSettings.canvas;
 
-    // Fondo muy oscuro - casi negro (una sola capa, sin viñetas múltiples)
+    // Fondo oscuro pero visible en móviles (no negro absoluto)
     const bg = this.add.graphics();
-    bg.fillStyle(0x010103, 1);
+    bg.fillStyle(0x06060c, 1);
     bg.fillRect(0, 0, width, height);
     bg.setDepth(-10); // Fondo en el nivel más bajo
 
@@ -1820,11 +1820,14 @@ export class Level1Scene extends Phaser.Scene {
       // Aseguramos que el container también esté a 1 por seguridad
       cell.graphics.setScale(1);
     }
-    
+
     if (this.currentCell) {
       // Identificar target para el nuevo pulso logicamente igual que en activateCell
-      let pulseTarget: Phaser.GameObjects.Graphics | Phaser.GameObjects.Arc | undefined;
-      
+      let pulseTarget:
+        | Phaser.GameObjects.Graphics
+        | Phaser.GameObjects.Arc
+        | undefined;
+
       if (this.currentCell.type === "letter") {
         pulseTarget = this.currentCell.cellBg;
       } else {
