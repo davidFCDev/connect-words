@@ -2081,26 +2081,20 @@ export class Level1Scene extends Phaser.Scene {
 
     if (this.path.length < 2) return;
 
-    // Efecto neón con múltiples capas de glow
+    // OPTIMIZACIÓN: Reducir capas de 5 a 3 para mejorar FPS
+    // El efecto visual es casi idéntico pero cuesta la mitad renderizar
 
-    // Capa 1: Glow exterior muy suave
-    this.linesGraphics.lineStyle(20, NEON_COLORS.electricBlue, 0.08);
+    // Capa 1: Glow exterior (más ancho y difuso)
+    this.linesGraphics.lineStyle(16, NEON_COLORS.electricBlue, 0.15);
     this.drawPath();
 
-    // Capa 2: Glow exterior
-    this.linesGraphics.lineStyle(14, NEON_COLORS.electricBlue, 0.12);
+    // Capa 2: Glow medio
+    this.linesGraphics.lineStyle(8, NEON_COLORS.electricBlue, 0.3);
     this.drawPath();
 
-    // Capa 3: Glow medio
-    this.linesGraphics.lineStyle(8, NEON_COLORS.electricBlue, 0.25);
+    // Capa 3: Núcleo sólido
+    this.linesGraphics.lineStyle(3, NEON_COLORS.electricBlue, 1);
     this.drawPath();
-
-    // Capa 4: Línea principal brillante
-    this.linesGraphics.lineStyle(4, NEON_COLORS.electricBlue, 0.9);
-    this.drawPath();
-
-    // La capa 5 (blanca) la quitamos de aquí y la dejamos para el efecto de flujo dinámico
-    // para evitar saturación visual y dar protagonismo al movimiento
   }
 
   private drawFlowLine(): void {
@@ -2108,54 +2102,54 @@ export class Level1Scene extends Phaser.Scene {
 
     if (this.path.length < 2) return;
 
-    const spacing = 70; // Espacio entre puntos de luz
-    const speed = 0.15; // Velocidad del flujo (px/ms)
-    // Usar time.now garantiza suavidad independiente del delta del update
+    // Velocidad más lenta para que se aprecie la forma
+    const spacing = 90;
+    const speed = 0.12;
     const offset = (this.time.now * speed) % spacing;
 
     let currentDist = 0;
 
-    // Iterar por cada segmento del camino
+    // Color del flujo: Cian claro para contrastar con el verde/azul de la línea
+    this.flowGraphics.fillStyle(0xd4fffe, 0.9);
+
     for (let i = 0; i < this.path.length - 1; i++) {
-      const p1 = this.path[i].graphics;
-      const p2 = this.path[i + 1].graphics;
+        const p1 = this.path[i].graphics;
+        const p2 = this.path[i+1].graphics;
 
-      const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        const angle = Phaser.Math.Angle.Between(p1.x, p1.y, p2.x, p2.y);
 
-      // Calcular cuántos puntos caben y dónde empiezan en este segmento
-      // La posición global de un punto es: GlobalPos = offset + n * spacing
-      // Queremos puntos donde: currentDist <= GlobalPos <= currentDist + dist
+        let n = Math.ceil((currentDist - offset) / spacing);
 
-      // Primer índice n posible:
-      // offset + n * spacing >= currentDist
-      // n * spacing >= currentDist - offset
-      // n >= (currentDist - offset) / spacing
-      let n = Math.ceil((currentDist - offset) / spacing);
+        while (true) {
+            const pointDistGlobal = offset + n * spacing;
+            const pointDistLocal = pointDistGlobal - currentDist;
 
-      while (true) {
-        const pointDistGlobal = offset + n * spacing;
-        const pointDistLocal = pointDistGlobal - currentDist;
+            if (pointDistLocal > dist) break;
 
-        if (pointDistLocal > dist) break; // Ya nos salimos del segmento
+            if (pointDistLocal >= 0) {
+                const t = pointDistLocal / dist;
+                const x = Phaser.Math.Linear(p1.x, p2.x, t);
+                const y = Phaser.Math.Linear(p1.y, p2.y, t);
 
-        // Solo dibujar si está dentro del segmento (puede ser negativo si offset es grande, aunque modulo lo evita)
-        if (pointDistLocal >= 0) {
-          const t = pointDistLocal / dist; // Factor de interpolación 0..1
-          const x = Phaser.Math.Linear(p1.x, p2.x, t);
-          const y = Phaser.Math.Linear(p1.y, p2.y, t);
+                // FORMA: Pulso de energía circular (Energy Wave)
+                // Simula una onda que viaja por la línea
+                
+                // Halo exterior difuso del color de la línea
+                this.flowGraphics.fillStyle(NEON_COLORS.electricBlue, 0.4);
+                this.flowGraphics.fillCircle(x, y, 9);
 
-          // Dibujar pulso de energía
-          // Núcleo blanco intenso
-          this.flowGraphics.fillStyle(0xffffff, 1);
-          this.flowGraphics.fillCircle(x, y, 2.5);
+                // Halo medio más intenso
+                this.flowGraphics.fillStyle(NEON_COLORS.electricBlue, 0.7);
+                this.flowGraphics.fillCircle(x, y, 5);
 
-          // Halo de color
-          this.flowGraphics.fillStyle(NEON_COLORS.electricWhite, 0.5);
-          this.flowGraphics.fillCircle(x, y, 6);
+                // Núcleo brillante casi blanco
+                this.flowGraphics.fillStyle(0xd4fffe, 1);
+                this.flowGraphics.fillCircle(x, y, 3);
+            }
+            n++;
         }
-        n++;
-      }
-      currentDist += dist;
+        currentDist += dist;
     }
   }
 
@@ -2674,10 +2668,10 @@ export class Level1Scene extends Phaser.Scene {
           const cell = this.cells[row][col];
           const originalY = cell.graphics.y;
 
-          // Onda hacia arriba suave
+          // Onda hacia arriba suave (Movimiento)
           this.tweens.add({
             targets: cell.graphics,
-            y: originalY - 6,
+            y: originalY - 14, // Movimiento un poco más pronunciado
             duration: 200,
             delay: rowDelay,
             ease: "Sine.easeOut",
@@ -2690,13 +2684,51 @@ export class Level1Scene extends Phaser.Scene {
           // Scale sutil sincronizado
           this.tweens.add({
             targets: cell.graphics,
-            scaleX: 1.04,
-            scaleY: 1.04,
+            scaleX: 1.1,
+            scaleY: 1.1,
             duration: 180,
             delay: rowDelay + 20,
             ease: "Sine.easeInOut",
             yoyo: true,
           });
+
+          // FLASH DE COLOR (Parpadeo sincronizado)
+          // Si tiene letra, cambiamos el color de la letra
+          if (cell.letterText) {
+             const originalColor = "#b7ff01"; // Verde original de letra iluminada
+             
+             // Animación manual del color usando un objeto temporal
+             // Phaser no permite tweenear colores hex strings fácilmente sin un plugin o update custom
+             
+             // Flash a BLANCO
+             this.time.delayedCall(rowDelay, () => {
+                cell.letterText!.setColor("#ffffff");
+                if (cell.letterCircle) cell.letterCircle.setStrokeStyle(3, 0xffffff);
+             });
+
+             // Volver a VERDE
+             this.time.delayedCall(rowDelay + 200, () => {
+                cell.letterText!.setColor(originalColor);
+                 if (cell.letterCircle) cell.letterCircle.setStrokeStyle(2, NEON_COLORS.electricBlue);
+             });
+          } 
+          
+          // Flash del overlay de la celda (para todas las celdas, incluyendo puntos)
+          if (cell.cellBg) {
+             const flashOverlay = this.add.graphics();
+             flashOverlay.fillStyle(0xffffff, 0.4); // Flash blanco semitransparente
+             flashOverlay.fillRoundedRect(-CELL_SIZE/2, -CELL_SIZE/2, CELL_SIZE, CELL_SIZE, 12);
+             cell.graphics.add(flashOverlay); // Añadir al contenedor de la celda
+             
+             this.tweens.add({
+                targets: flashOverlay,
+                alpha: { from: 0.6, to: 0 },
+                duration: 300,
+                delay: rowDelay,
+                ease: "Power2",
+                onComplete: () => flashOverlay.destroy()
+             });
+          }
         }
       }
     }
