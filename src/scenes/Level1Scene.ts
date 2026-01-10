@@ -192,6 +192,10 @@ export class Level1Scene extends Phaser.Scene {
   private gridStartX: number = 0;
   private gridStartY: number = 0;
 
+  // Renderizado de flujo de energía
+  private flowGraphics!: Phaser.GameObjects.Graphics;
+  private flowOffset: number = 0;
+
   // Control de animación de electricidad
   private electricityFrame: number = 0;
 
@@ -602,6 +606,9 @@ export class Level1Scene extends Phaser.Scene {
     this.time_elapsed += delta;
     this.frameCount++;
 
+    // Dibujar flujo de energía animado
+    this.drawFlowLine();
+
     // Actualizar timer (solo redibujar cuando cambia el segundo mostrado)
     if (!this.gameWon && !this.isGameOver && this.timeRemaining > 0) {
       this.timeRemaining -= delta / 1000;
@@ -859,6 +866,7 @@ export class Level1Scene extends Phaser.Scene {
 
     this.gridContainer = this.add.container(0, 0);
     this.linesGraphics = this.add.graphics();
+    this.flowGraphics = this.add.graphics(); // Capa para animación de flujo
 
     this.cells = [];
     this.totalCells = 0;
@@ -1685,6 +1693,11 @@ export class Level1Scene extends Phaser.Scene {
         if (cellsAfterThis < this.totalCells) {
           // No se han completado todas las celdas, mostrar error
           this.showWrongLetterFeedback(cell);
+          this.showFloatingText(
+            cell.graphics.x,
+            cell.graphics.y,
+            "FILL ALL CELLS!"
+          );
           return;
         }
       }
@@ -2086,9 +2099,64 @@ export class Level1Scene extends Phaser.Scene {
     this.linesGraphics.lineStyle(4, NEON_COLORS.electricBlue, 0.9);
     this.drawPath();
 
-    // Capa 5: Núcleo blanco brillante
-    this.linesGraphics.lineStyle(1.5, NEON_COLORS.electricWhite, 1);
-    this.drawPath();
+    // La capa 5 (blanca) la quitamos de aquí y la dejamos para el efecto de flujo dinámico
+    // para evitar saturación visual y dar protagonismo al movimiento
+  }
+
+  private drawFlowLine(): void {
+    this.flowGraphics.clear();
+
+    if (this.path.length < 2) return;
+
+    const spacing = 70; // Espacio entre puntos de luz
+    const speed = 0.15; // Velocidad del flujo (px/ms)
+    // Usar time.now garantiza suavidad independiente del delta del update
+    const offset = (this.time.now * speed) % spacing;
+
+    let currentDist = 0;
+
+    // Iterar por cada segmento del camino
+    for (let i = 0; i < this.path.length - 1; i++) {
+      const p1 = this.path[i].graphics;
+      const p2 = this.path[i + 1].graphics;
+
+      const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+
+      // Calcular cuántos puntos caben y dónde empiezan en este segmento
+      // La posición global de un punto es: GlobalPos = offset + n * spacing
+      // Queremos puntos donde: currentDist <= GlobalPos <= currentDist + dist
+
+      // Primer índice n posible:
+      // offset + n * spacing >= currentDist
+      // n * spacing >= currentDist - offset
+      // n >= (currentDist - offset) / spacing
+      let n = Math.ceil((currentDist - offset) / spacing);
+
+      while (true) {
+        const pointDistGlobal = offset + n * spacing;
+        const pointDistLocal = pointDistGlobal - currentDist;
+
+        if (pointDistLocal > dist) break; // Ya nos salimos del segmento
+
+        // Solo dibujar si está dentro del segmento (puede ser negativo si offset es grande, aunque modulo lo evita)
+        if (pointDistLocal >= 0) {
+          const t = pointDistLocal / dist; // Factor de interpolación 0..1
+          const x = Phaser.Math.Linear(p1.x, p2.x, t);
+          const y = Phaser.Math.Linear(p1.y, p2.y, t);
+
+          // Dibujar pulso de energía
+          // Núcleo blanco intenso
+          this.flowGraphics.fillStyle(0xffffff, 1);
+          this.flowGraphics.fillCircle(x, y, 2.5);
+
+          // Halo de color
+          this.flowGraphics.fillStyle(NEON_COLORS.electricWhite, 0.5);
+          this.flowGraphics.fillCircle(x, y, 6);
+        }
+        n++;
+      }
+      currentDist += dist;
+    }
   }
 
   private drawLightningBolts(): void {
@@ -2388,6 +2456,9 @@ export class Level1Scene extends Phaser.Scene {
   }
 
   private showWrongLetterFeedback(cell: Cell): void {
+    // Camera shake suave y corto
+    this.cameras.main.shake(150, 0.004);
+
     // Solo flash rojo, sin animación de movimiento
     if (cell.letterText) {
       cell.letterText.setColor("#ff4444");
@@ -2399,6 +2470,28 @@ export class Level1Scene extends Phaser.Scene {
     }
 
     this.playErrorSound();
+  }
+
+  private showFloatingText(x: number, y: number, message: string): void {
+    const text = this.add.text(x, y - 60, message, {
+      fontFamily: '"Orbitron", sans-serif',
+      fontSize: "22px",
+      color: "#b7ff01",
+      fontStyle: "bold",
+      stroke: "#000000",
+      strokeThickness: 4,
+    });
+    text.setOrigin(0.5);
+    text.setDepth(200); // Asegurar que esté por encima de todo
+
+    this.tweens.add({
+      targets: text,
+      y: y - 100,
+      alpha: 0,
+      duration: 1500,
+      ease: "Power2",
+      onComplete: () => text.destroy(),
+    });
   }
 
   private showVictory(): void {
@@ -2755,67 +2848,83 @@ export class Level1Scene extends Phaser.Scene {
   // ============ SONIDOS ============
 
   private playConnectSound(): void {
-    if (!this.audioContext) return;
+    if (!this.audioContext || Level1Scene.isMuted) return;
 
     const ctx = this.audioContext;
     const now = ctx.currentTime;
 
-    const osc = ctx.createOscillator();
+    // Escala Pentatónica Mayor (C4 - C6) para sonido melódico agradable
+    const scale = [
+      261.63,
+      293.66,
+      329.63,
+      392.0,
+      440.0, // 8va 4
+      523.25,
+      587.33,
+      659.25,
+      783.99,
+      880.0, // 8va 5
+      1046.5,
+      1174.66,
+      1318.51,
+      1567.98,
+      1760.0, // 8va 6
+    ];
+
+    const noteIndex = Math.min(this.path.length - 1, scale.length - 1);
+    const freq = scale[noteIndex];
+
+    // Oscilador principal (Seno - Cuerpo)
+    const osc1 = ctx.createOscillator();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(freq, now);
+
+    // Oscilador secundario (Triángulo - Color/Brillo)
+    const osc2 = ctx.createOscillator();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(freq, now);
+    // Ligero detune para efecto chorus natural
+    osc2.detune.setValueAtTime(8, now);
+
+    // Filtro para suavizar el ataque (Lowpass)
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(freq * 2, now);
+    filter.frequency.exponentialRampToValueAtTime(freq * 0.5, now + 0.3);
+
+    // Ganancia
     const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.02); // Ataque suave
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4); // Decay medio
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(800 + this.path.length * 50, now);
-    osc.frequency.exponentialRampToValueAtTime(
-      1200 + this.path.length * 50,
-      now + 0.1
-    );
-
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-    osc.connect(gain);
+    // Conexiones
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.start(now);
-    osc.stop(now + 0.15);
+    // Ejecución
+    osc1.start(now);
+    osc1.stop(now + 0.4);
+    osc2.start(now);
+    osc2.stop(now + 0.4);
   }
 
   private playUndoSound(): void {
-    if (!this.audioContext) return;
+    if (!this.audioContext || Level1Scene.isMuted) return;
 
     const ctx = this.audioContext;
     const now = ctx.currentTime;
 
+    // Sonido de "retroceso" tipo vacío/succión
     const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
     osc.type = "sine";
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
 
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-  }
-
-  private playErrorSound(): void {
-    if (!this.audioContext) return;
-
-    const ctx = this.audioContext;
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.setValueAtTime(150, now + 0.1);
-
     gain.gain.setValueAtTime(0.1, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
@@ -2824,6 +2933,35 @@ export class Level1Scene extends Phaser.Scene {
 
     osc.start(now);
     osc.stop(now + 0.2);
+  }
+
+  private playErrorSound(): void {
+    if (!this.audioContext || Level1Scene.isMuted) return;
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    osc1.type = "sawtooth";
+    osc1.frequency.setValueAtTime(150, now);
+    osc1.frequency.linearRampToValueAtTime(100, now + 0.2);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = "square";
+    osc2.frequency.setValueAtTime(148, now); // Disonante
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc1.stop(now + 0.25);
+    osc2.start(now);
+    osc2.stop(now + 0.25);
   }
 
   private playVictorySound(): void {
