@@ -807,7 +807,7 @@ export class Level1Scene extends Phaser.Scene {
         const alpha = isThick
           ? 0.12 + Math.random() * 0.06
           : 0.08 + Math.random() * 0.07;
-        
+
         // Usar el color cian/azul eléctrico (pathColor) para mejor integración
         const stripeColor = NEON_COLORS.pathColor;
 
@@ -877,7 +877,7 @@ export class Level1Scene extends Phaser.Scene {
 
     this.linesGraphics = this.add.graphics();
     this.linesGraphics.setDepth(5); // Líneas por debajo de las celdas pero sobre el fondo (-5)
-    
+
     this.flowGraphics = this.add.graphics(); // Capa para animación de flujo
     this.flowGraphics.setDepth(6); // Flujo justo encima de las líneas
 
@@ -1941,15 +1941,20 @@ export class Level1Scene extends Phaser.Scene {
   // ============ INPUT HANDLERS ============
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    // Bloquear input durante el tutorial
-    if (this.gamePaused) return;
+    // Bloquear input durante el tutorial o game over o victoria
+    if (this.gamePaused || this.isGameOver || this.gameWon) return;
 
     const cell = this.getCellAtPosition(pointer.x, pointer.y);
 
     // Siempre activamos el drag cuando hacemos click
     this.isDragging = true;
-
-    if (!cell) return;
+    
+    // Y verificamos si es una pulsación de botón de UI (fuera del grid)
+    if (!cell) {
+        // Permitir interacción con botones aunque no haya cell, pero el resto de lógica
+        // de conectar celdas se detiene aquí
+        return;
+    }
 
     // Si la celda ya está conectada
     if (cell.isConnected) {
@@ -1968,8 +1973,8 @@ export class Level1Scene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    // Bloquear input durante el tutorial
-    if (this.gamePaused) return;
+    // Bloquear input durante el tutorial o game over o victoria
+    if (this.gamePaused || this.isGameOver || this.gameWon) return;
 
     if (!this.isDragging || !this.currentCell) return;
 
