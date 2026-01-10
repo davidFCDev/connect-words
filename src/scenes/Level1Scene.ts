@@ -1695,37 +1695,24 @@ export class Level1Scene extends Phaser.Scene {
     
     // Contenedor del botón en la esquina superior derecha
     // width - 40 es un poco justo, width - 60 mejor
-    this.supportButton = this.add.container(width - 50, 45); // Un poco más cerca del borde superior
+    this.supportButton = this.add.container(width - 50, 70); // Alineado con altura del Score (Y=70)
     this.supportButton.setDepth(100);
 
     // Dibujar corazón estilo neón
     const heart = this.add.graphics();
+    const neonGreen = 0xb7ff01; // Verde neón usado en Score y Tutorial
     
-    // Glow exterior
-    heart.lineStyle(4, NEON_COLORS.pathColor, 0.4);
-    
-    // Dibujar glow
-    this.drawHeartPath(heart, 0, 0, 1.2);
-    
-    // Línea principal
-    heart.lineStyle(2, NEON_COLORS.pathColor, 1);
-    this.drawHeartPath(heart, 0, 0, 0.9);
+    // Línea principal (Sin glow)
+    heart.lineStyle(2, neonGreen, 1);
+    this.drawHeartPath(heart, 0, 0, 1.0);
 
     // Relleno sutil
-    heart.fillStyle(NEON_COLORS.pathColor, 0.15);
-    this.drawHeartPath(heart, 0, 0, 0.9, true);
+    heart.fillStyle(neonGreen, 0.2);
+    this.drawHeartPath(heart, 0, 0, 1.0, true);
 
     this.supportButton.add(heart);
 
-    // Animación de latido
-    this.tweens.add({
-      targets: this.supportButton,
-      scale: { from: 1, to: 1.15 },
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut"
-    });
+    // Sin animación de latido
 
     // Interactividad
     const hitArea = new Phaser.Geom.Circle(0, 0, 25);
@@ -1740,24 +1727,20 @@ export class Level1Scene extends Phaser.Scene {
       this.input.setDefaultCursor("pointer");
       heart.clear();
       // Más brillante al pasar el mouse
-      heart.lineStyle(4, NEON_COLORS.pathColor, 0.6);
-      this.drawHeartPath(heart, 0, 0, 1.25);
-      heart.lineStyle(2, 0xffffff, 1);
-      this.drawHeartPath(heart, 0, 0, 0.95);
-      heart.fillStyle(NEON_COLORS.pathColor, 0.3);
-      this.drawHeartPath(heart, 0, 0, 0.95, true);
+      heart.lineStyle(3, neonGreen, 1);
+      this.drawHeartPath(heart, 0, 0, 1.1);
+      heart.fillStyle(neonGreen, 0.4);
+      this.drawHeartPath(heart, 0, 0, 1.1, true);
     });
     
     this.supportButton.on("pointerout", () => {
       this.input.setDefaultCursor("default");
       heart.clear();
       // Restaurar estilo normal
-      heart.lineStyle(4, NEON_COLORS.pathColor, 0.4);
-      this.drawHeartPath(heart, 0, 0, 1.2);
-      heart.lineStyle(2, NEON_COLORS.pathColor, 1);
-      this.drawHeartPath(heart, 0, 0, 0.9);
-      heart.fillStyle(NEON_COLORS.pathColor, 0.15);
-      this.drawHeartPath(heart, 0, 0, 0.9, true);
+      heart.lineStyle(2, neonGreen, 1);
+      this.drawHeartPath(heart, 0, 0, 1.0);
+      heart.fillStyle(neonGreen, 0.2);
+      this.drawHeartPath(heart, 0, 0, 1.0, true);
     });
   }
 
@@ -1833,23 +1816,28 @@ export class Level1Scene extends Phaser.Scene {
       fontFamily: '"Orbitron", sans-serif',
       fontSize: "28px",
       color: "#b7ff01", // Verde neón
-      fontStyle: "bold",
-      shadow: { blur: 10, color: "#b7ff01", fill: true, offsetX: 0, offsetY: 0 }
+      fontStyle: "bold"
+      // Sin shadow
     });
     cost.setOrigin(0.5);
     this.supportOverlay.add(cost);
     
     // Botón Support
     const btnContainer = this.add.container(width / 2, modalY + 90);
+    const neonGreen = 0xb7ff01; 
+    
+    const btnW = 240; // Más ancho (era 200)
+    const btnH = 70;  // Más alto (era 60)
     
     const btnBg = this.add.graphics();
-    btnBg.fillStyle(NEON_COLORS.pathColor, 0.2); // Fondo cian suave
-    btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
-    btnBg.lineStyle(2, NEON_COLORS.pathColor, 1);
-    btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+    btnBg.fillStyle(neonGreen, 0.2); 
+    // Cuadrado (radio pequeño 4)
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
+    btnBg.lineStyle(2, neonGreen, 1);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
     btnContainer.add(btnBg);
     
-    const btnText = this.add.text(0, 0, "SUPPORT ❤️", {
+    const btnText = this.add.text(0, 0, "SUPPORT", { // Sin icono
       fontFamily: '"Orbitron", sans-serif',
       fontSize: "24px",
       color: "#ffffff",
@@ -1859,24 +1847,28 @@ export class Level1Scene extends Phaser.Scene {
     btnContainer.add(btnText);
     
     // Interactividad botón support
-    btnContainer.setInteractive(new Phaser.Geom.Rectangle(-100, -30, 200, 60), Phaser.Geom.Rectangle.Contains);
+    btnContainer.setInteractive(new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH), Phaser.Geom.Rectangle.Contains);
     btnContainer.on("pointerover", () => {
       this.input.setDefaultCursor("pointer");
       btnBg.clear();
-      btnBg.fillStyle(NEON_COLORS.pathColor, 0.4);
-      btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
+      btnBg.fillStyle(neonGreen, 0.4);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
       btnBg.lineStyle(2, 0xffffff, 1);
-      btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
       btnContainer.setScale(1.05);
+      
+      btnText.setColor("#000000"); // Texto negro contraste
     });
     btnContainer.on("pointerout", () => {
       this.input.setDefaultCursor("default");
       btnBg.clear();
-      btnBg.fillStyle(NEON_COLORS.pathColor, 0.2);
-      btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
-      btnBg.lineStyle(2, NEON_COLORS.pathColor, 1);
-      btnBg.strokeRoundedRect(-100, -30, 200, 60, 30);
+      btnBg.fillStyle(neonGreen, 0.2);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
+      btnBg.lineStyle(2, neonGreen, 1);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 4);
       btnContainer.setScale(1);
+      
+      btnText.setColor("#ffffff");
     });
     btnContainer.on("pointerdown", () => {
       // Lanzar compra SDK

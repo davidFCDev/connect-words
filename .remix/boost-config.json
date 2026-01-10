@@ -1,8 +1,13 @@
 {
-  "purchasedItems": [],
+  "purchasedTiers": [
+    "tier-1",
+    "tier-2"
+  ],
   "tierRewards": {
-    "tier-1": ["Reward 1"],
-    "tier-2": ["Reward 2"],
-    "tier-3": ["Reward 3"]
+    "tier-1": [],
+    "tier-2": [],
+    "tier-3": [
+      "Reward 3"
+    ]
   }
 }
