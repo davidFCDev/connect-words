@@ -802,15 +802,14 @@ export class Level1Scene extends Phaser.Scene {
         const stripeWidth = 40 + Math.random() * config.maxWidth;
         const gap = 6 + Math.random() * 12;
 
-        // Color más intenso (amarillo/verde neón) y mayor opacidad para que no se vean apagadas
+        // Color más intenso y mayor opacidad para que no se vean apagadas
         // Aumentado alpha base de 0.06 -> 0.12 y 0.03 -> 0.08
         const alpha = isThick
           ? 0.12 + Math.random() * 0.06
           : 0.08 + Math.random() * 0.07;
         
-        // Usar un color amarillo más dorado/cálido específico para el fondo
-        // en lugar del verde lima general (0xB7FF01 -> 0xFFDD00) para mejor contraste
-        const stripeColor = 0xffdd00;
+        // Usar el color cian/azul eléctrico (pathColor) para mejor integración
+        const stripeColor = NEON_COLORS.pathColor;
 
         // Dibujar raya diagonal (45 grados)
         stripes.lineStyle(thickness, stripeColor, alpha);
@@ -833,7 +832,7 @@ export class Level1Scene extends Phaser.Scene {
       { x: 20, y: height / 2 + 220, length: 55, thick: true },
     ];
 
-    const accentColor = 0xffcc00; // Amarillo intenso para acentos
+    const accentColor = NEON_COLORS.pathColor; // Azul cian para acentos
 
     for (const accent of accentStripes) {
       const lineWidth = accent.thick ? 6 : 2;
