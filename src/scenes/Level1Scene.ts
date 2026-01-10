@@ -802,13 +802,18 @@ export class Level1Scene extends Phaser.Scene {
         const stripeWidth = 40 + Math.random() * config.maxWidth;
         const gap = 6 + Math.random() * 12;
 
-        // Color con variación de opacidad (muy sutil, gruesas un poco más visibles)
+        // Color más intenso (amarillo/verde neón) y mayor opacidad para que no se vean apagadas
+        // Aumentado alpha base de 0.06 -> 0.12 y 0.03 -> 0.08
         const alpha = isThick
-          ? 0.06 + Math.random() * 0.04
-          : 0.03 + Math.random() * 0.05;
+          ? 0.12 + Math.random() * 0.06
+          : 0.08 + Math.random() * 0.07;
+        
+        // Usar un color amarillo más dorado/cálido específico para el fondo
+        // en lugar del verde lima general (0xB7FF01 -> 0xFFDD00) para mejor contraste
+        const stripeColor = 0xffdd00;
 
         // Dibujar raya diagonal (45 grados)
-        stripes.lineStyle(thickness, NEON_COLORS.electricBlue, alpha);
+        stripes.lineStyle(thickness, stripeColor, alpha);
         stripes.beginPath();
         stripes.moveTo(config.x, currentY);
         stripes.lineTo(config.x + stripeWidth, currentY - stripeWidth);
@@ -828,10 +833,13 @@ export class Level1Scene extends Phaser.Scene {
       { x: 20, y: height / 2 + 220, length: 55, thick: true },
     ];
 
+    const accentColor = 0xffcc00; // Amarillo intenso para acentos
+
     for (const accent of accentStripes) {
       const lineWidth = accent.thick ? 6 : 2;
-      const alpha = accent.thick ? 0.08 : 0.1;
-      stripes.lineStyle(lineWidth, NEON_COLORS.electricBlue, alpha);
+      // Mayor alpha para los acentos
+      const alpha = accent.thick ? 0.2 : 0.15;
+      stripes.lineStyle(lineWidth, accentColor, alpha);
       stripes.beginPath();
       stripes.moveTo(accent.x, accent.y);
       stripes.lineTo(accent.x + accent.length, accent.y - accent.length);
